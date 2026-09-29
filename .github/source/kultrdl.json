@@ -9,5 +9,39 @@
     "privacy": {
       "NSLocalNetworkUsageDescription": "KultrDL sends downloads to your FTP or SFTP server, which may be on your home network."
     }
-  }
+  },
+  "screenshots": [
+    {
+      "imageURL": "https://raw.githubusercontent.com/evropiani/KultrDL_iOS/main/docs/screenshots/1-home.jpg",
+      "width": 1206,
+      "height": 2622
+    },
+    {
+      "imageURL": "https://raw.githubusercontent.com/evropiani/KultrDL_iOS/main/docs/screenshots/2-search.jpg",
+      "width": 1206,
+      "height": 2622
+    },
+    {
+      "imageURL": "https://raw.githubusercontent.com/evropiani/KultrDL_iOS/main/docs/screenshots/3-album.jpg",
+      "width": 1206,
+      "height": 2622
+    },
+    {
+      "imageURL": "https://raw.githubusercontent.com/evropiani/KultrDL_iOS/main/docs/screenshots/4-player.jpg",
+      "width": 1206,
+      "height": 2622
+    },
+    {
+      "imageURL": "https://raw.githubusercontent.com/evropiani/KultrDL_iOS/main/docs/screenshots/5-library.jpg",
+      "width": 1206,
+      "height": 2622
+    }
+  ],
+  "screenshotURLs": [
+    "https://raw.githubusercontent.com/evropiani/KultrDL_iOS/main/docs/screenshots/1-home.jpg",
+    "https://raw.githubusercontent.com/evropiani/KultrDL_iOS/main/docs/screenshots/2-search.jpg",
+    "https://raw.githubusercontent.com/evropiani/KultrDL_iOS/main/docs/screenshots/3-album.jpg",
+    "https://raw.githubusercontent.com/evropiani/KultrDL_iOS/main/docs/screenshots/4-player.jpg",
+    "https://raw.githubusercontent.com/evropiani/KultrDL_iOS/main/docs/screenshots/5-library.jpg"
+  ]
 }

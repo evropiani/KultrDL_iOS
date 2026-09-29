@@ -5,6 +5,14 @@ Search, play, save and download music on the iPhone, in the design of
 counterpart of [KultrDL for Android](https://github.com/evropiani/KultrDL):
 the same sources, formats and servers, and backups that move between the two.
 
+<p align="center">
+  <img src="docs/screenshots/1-home.jpg" width="19%" alt="Home">
+  <img src="docs/screenshots/2-search.jpg" width="19%" alt="Search">
+  <img src="docs/screenshots/3-album.jpg" width="19%" alt="An album">
+  <img src="docs/screenshots/4-player.jpg" width="19%" alt="The player">
+  <img src="docs/screenshots/5-library.jpg" width="19%" alt="Library">
+</p>
+
 ## Features
 
 - **Every source.** Search YouTube Music, YouTube, SoundCloud, Bandcamp,
