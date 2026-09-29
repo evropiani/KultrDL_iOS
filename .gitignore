@@ -9,3 +9,4 @@ xcuserdata/
 KultrDLKit/Package.resolved
 shots/
 *.log
+__pycache__/
