@@ -71,7 +71,9 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
-            | tee build.log | grep -E "error:|warning: unre|BUILD (SUCCEEDED|FAILED)" || true
+            > build.log 2>&1 || true
+          grep -E "error:" build.log | sed -E 's#^.*/KultrDL_iOS/##' | sort -u | head -150 || true
+          grep -E "BUILD (SUCCEEDED|FAILED)" build.log || tail -30 build.log
           grep -q "BUILD SUCCEEDED" build.log
 
       - name: Screenshots in the simulator
@@ -110,7 +112,7 @@ jobs:
               [ -n "$DATA" ] && rm -f "$DATA/Documents/.kultrdl-ready-$screen"
               SIMCTL_CHILD_KULTRDL_SCREEN=$screen SIMCTL_CHILD_KULTRDL_LOOK=${LOOK:-dark} xcrun simctl launch "$UDID" app.kultr.dl
               DATA=$(xcrun simctl get_app_container "$UDID" app.kultr.dl data)
-              for i in $(seq 1 90); do
+              for i in $(seq 1 200); do
                 [ -f "$DATA/Documents/.kultrdl-ready-$screen" ] && break
                 sleep 1
               done

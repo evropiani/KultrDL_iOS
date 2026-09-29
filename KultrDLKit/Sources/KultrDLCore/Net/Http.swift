@@ -5,6 +5,12 @@ public struct HttpError: LocalizedError, Sendable {
     public let host: String
     public let body: String?
 
+    public init(code: Int, host: String, body: String?) {
+        self.code = code
+        self.host = host
+        self.body = body
+    }
+
     public var errorDescription: String? { "HTTP \(code) from \(host)" }
 }
 

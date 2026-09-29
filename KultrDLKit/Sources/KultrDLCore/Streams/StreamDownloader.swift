@@ -3,6 +3,11 @@ import Foundation
 /** The server refused the stream itself (YouTube's 403): another client may do better. */
 public struct StreamForbidden: LocalizedError, Sendable {
     public let code: Int
+
+    public init(code: Int) {
+        self.code = code
+    }
+
     public var errorDescription: String? { "The stream was refused (HTTP \(code))." }
 }
 
