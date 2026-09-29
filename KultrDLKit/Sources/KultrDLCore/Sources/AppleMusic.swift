@@ -79,7 +79,7 @@ public final class AppleMusic: @unchecked Sendable {
             durationMs: r["trackTimeMillis"].int64,
             artworkUrl: bigArtwork(r["artworkUrl100"].string ?? r["artworkUrl60"].string),
             pageUrl: r["trackViewUrl"].string?.before("&uo="),
-            year: Text.year(r["releaseDate"].string),
+            year: TextTools.year(r["releaseDate"].string),
             trackNumber: r["trackNumber"].int,
             discNumber: r["discNumber"].int,
             genre: r["primaryGenreName"].string,
@@ -97,7 +97,7 @@ public final class AppleMusic: @unchecked Sendable {
             subtitle: r["artistName"].string,
             artworkUrl: bigArtwork(r["artworkUrl100"].string),
             pageUrl: r["collectionViewUrl"].string?.before("?uo="),
-            year: Text.year(r["releaseDate"].string),
+            year: TextTools.year(r["releaseDate"].string),
             trackCount: r["trackCount"].int
         )
     }
@@ -112,7 +112,7 @@ public final class AppleMusic: @unchecked Sendable {
                 artist: r["artistName"].string ?? "Unknown artist",
                 artworkUrl: bigArtwork(r["artworkUrl100"].string),
                 pageUrl: r["url"].string,
-                year: Text.year(r["releaseDate"].string),
+                year: TextTools.year(r["releaseDate"].string),
                 genre: r["genres"]?[0]?["name"].string
             )
         } ?? []

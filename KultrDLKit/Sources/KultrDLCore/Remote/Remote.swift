@@ -63,11 +63,11 @@ public enum FolderLayout: String, Codable, CaseIterable, Sendable, Hashable {
 
     /** The folders under the chosen one, e.g. ["Björk", "Homogenic"]. */
     public func folders(artist: String, albumArtist: String?, album: String?) -> [String] {
-        let who = Text.fileName(albumArtist?.trimmed().nonEmpty ?? artist.trimmed().nonEmpty ?? "Unknown artist", max: 80)
+        let who = TextTools.fileName(albumArtist?.trimmed().nonEmpty ?? artist.trimmed().nonEmpty ?? "Unknown artist", max: 80)
         switch self {
         case .flat: return []
         case .artist: return [who]
-        case .artistAlbum: return [who] + (album?.trimmed().nonEmpty.map { [Text.fileName($0, max: 80)] } ?? [])
+        case .artistAlbum: return [who] + (album?.trimmed().nonEmpty.map { [TextTools.fileName($0, max: 80)] } ?? [])
         }
     }
 

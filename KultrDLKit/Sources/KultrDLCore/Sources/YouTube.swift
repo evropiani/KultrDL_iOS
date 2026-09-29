@@ -99,13 +99,13 @@ public final class YouTube: @unchecked Sendable {
         guard !rawTitle.isEmpty else { return nil }
         let owner = text(v["ownerText"])
         let channel = (owner.isEmpty ? text(v["longBylineText"]) : owner).nonEmpty
-        let (artist, title) = Text.artistAndTitle(rawTitle, channel: channel)
+        let (artist, title) = TextTools.artistAndTitle(rawTitle, channel: channel)
         return Track(
             id: "yt:\(id)",
             source: .youtube,
             title: title,
             artist: artist.isEmpty ? (channel ?? "Unknown artist") : artist,
-            durationMs: Text.parseClock(text(v["lengthText"])),
+            durationMs: TextTools.parseClock(text(v["lengthText"])),
             artworkUrl: lastThumbnail(v),
             pageUrl: watchUrl(id),
             streamUrl: watchUrl(id)
@@ -119,14 +119,14 @@ public final class YouTube: @unchecked Sendable {
             let rawTitle = text(v["title"])
             guard !rawTitle.isEmpty else { return nil }
             let channel = text(v["shortBylineText"]).nonEmpty ?? text(v["longBylineText"]).nonEmpty
-            let (artist, title) = Text.artistAndTitle(rawTitle, channel: channel)
+            let (artist, title) = TextTools.artistAndTitle(rawTitle, channel: channel)
             let seconds = v["lengthSeconds"].int64
             return Track(
                 id: "yt:\(id)",
                 source: .youtube,
                 title: title,
                 artist: artist.isEmpty ? (channel ?? "Unknown artist") : artist,
-                durationMs: seconds.map { $0 * 1000 } ?? Text.parseClock(text(v["lengthText"])),
+                durationMs: seconds.map { $0 * 1000 } ?? TextTools.parseClock(text(v["lengthText"])),
                 artworkUrl: lastThumbnail(v),
                 pageUrl: watchUrl(id),
                 streamUrl: watchUrl(id)
@@ -152,11 +152,11 @@ public final class YouTube: @unchecked Sendable {
         let author = d["author"].string
         let named: (artist: String, title: String) = source == .youtubeMusic || author?.hasSuffix(" - Topic") == true
             ? (artist: (author ?? "").removingSuffix(" - Topic"), title: rawTitle)
-            : Text.artistAndTitle(rawTitle, channel: author)
+            : TextTools.artistAndTitle(rawTitle, channel: author)
         let (artist, title) = (named.artist, named.title)
         let thumbs = d["thumbnail"]?["thumbnails"].array ?? []
         let best = thumbs.max { ($0["width"].int ?? 0) < ($1["width"].int ?? 0) }?["url"].string?.before("?")
-        let year = Text.year(root.path("microformat", "playerMicroformatRenderer", "publishDate").string)
+        let year = TextTools.year(root.path("microformat", "playerMicroformatRenderer", "publishDate").string)
         let url = source == .youtubeMusic ? YouTubeMusic.watchUrl(id) : watchUrl(id)
         return Track(
             id: "yt:\(id)",

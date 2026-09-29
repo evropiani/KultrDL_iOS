@@ -103,7 +103,7 @@ public final class Spotify: @unchecked Sendable {
             artworkUrl: biggestImage(albumJSON?["images"]) ?? album?.artworkUrl,
             pageUrl: pageUrl("track", id),
             isrc: r["external_ids"]?["isrc"].string,
-            year: Text.year(albumJSON?["release_date"].string) ?? album?.year,
+            year: TextTools.year(albumJSON?["release_date"].string) ?? album?.year,
             trackNumber: r["track_number"].int,
             discNumber: r["disc_number"].int,
             explicit: r["explicit"].bool == true
@@ -120,7 +120,7 @@ public final class Spotify: @unchecked Sendable {
             subtitle: names(r["artists"]),
             artworkUrl: biggestImage(r["images"]),
             pageUrl: pageUrl("album", id),
-            year: Text.year(r["release_date"].string),
+            year: TextTools.year(r["release_date"].string),
             trackCount: r["total_tracks"].int
         )
     }
@@ -169,7 +169,7 @@ public final class Spotify: @unchecked Sendable {
             durationMs: e["duration"].int64 ?? e["maxDuration"].int64,
             artworkUrl: cover(e),
             pageUrl: pageUrl("track", id),
-            year: Text.year(e["releaseDate"]?["isoString"].string ?? e["releaseDate"].string),
+            year: TextTools.year(e["releaseDate"]?["isoString"].string ?? e["releaseDate"].string),
             explicit: e["isExplicit"].bool == true
         )
     }
@@ -203,7 +203,7 @@ public final class Spotify: @unchecked Sendable {
             subtitle: owner,
             artworkUrl: art,
             pageUrl: pageUrl(kind, id),
-            year: Text.year(e["releaseDate"]?["isoString"].string),
+            year: TextTools.year(e["releaseDate"]?["isoString"].string),
             trackCount: tracks.count,
             tracks: tracks
         )

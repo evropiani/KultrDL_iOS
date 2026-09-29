@@ -240,11 +240,12 @@ final class VorbisEncoder: PCMEncoder {
             throw KultrError("The Vorbis encoder refused \(kbps) kbps at this sample rate.")
         }
         vorbis_comment_init(comment)
+        let commentPointer = comment
         for field in VorbisComment.fields(tags) {
             let (name, value) = (field.before("="), field.after("="))
             name.withCString { n in
                 value.withCString { v in
-                    vorbis_comment_add_tag(comment, UnsafeMutablePointer(mutating: n), UnsafeMutablePointer(mutating: v))
+                    vorbis_comment_add_tag(commentPointer, UnsafeMutablePointer(mutating: n), UnsafeMutablePointer(mutating: v))
                 }
             }
         }

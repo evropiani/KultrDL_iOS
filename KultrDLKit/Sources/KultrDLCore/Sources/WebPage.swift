@@ -51,7 +51,7 @@ public final class WebPage: @unchecked Sendable {
         ]
         for p in patterns {
             if let v = p.group(html) {
-                let t = Text.unescapeHtml(v).trimmed()
+                let t = TextTools.unescapeHtml(v).trimmed()
                 if !t.isEmpty { return t }
             }
         }
@@ -86,13 +86,13 @@ public final class WebPage: @unchecked Sendable {
                 let rec = item["item"] ?? item
                 guard let title = rec["name"].string else { return nil }
                 return Recording(
-                    title: Text.unescapeHtml(title),
-                    artist: name(rec["byArtist"]).map(Text.unescapeHtml),
-                    durationMs: Text.parseIsoDuration(rec["duration"].string)
+                    title: TextTools.unescapeHtml(title),
+                    artist: name(rec["byArtist"]).map(TextTools.unescapeHtml),
+                    durationMs: TextTools.parseIsoDuration(rec["duration"].string)
                 )
             }
         }
-        let titleText = titleTag.group(html).map { Text.unescapeHtml($0).trimmed() }
+        let titleText = titleTag.group(html).map { TextTools.unescapeHtml($0).trimmed() }
         return Meta(
             title: meta(html, "og:title") ?? meta(html, "twitter:title") ?? titleText,
             description: meta(html, "og:description") ?? meta(html, "description"),
@@ -101,9 +101,9 @@ public final class WebPage: @unchecked Sendable {
             audio: meta(html, "og:audio:secure_url") ?? meta(html, "og:audio") ?? meta(html, "og:audio:url"),
             musician: meta(html, "music:musician_description") ?? meta(html, "music:musician"),
             recordings: recordings,
-            byArtist: main.flatMap { name($0["byArtist"]) }.map(Text.unescapeHtml),
+            byArtist: main.flatMap { name($0["byArtist"]) }.map(TextTools.unescapeHtml),
             schemaType: main.flatMap(typeOf),
-            schemaName: main?["name"].string.map(Text.unescapeHtml)
+            schemaName: main?["name"].string.map(TextTools.unescapeHtml)
         )
     }
 

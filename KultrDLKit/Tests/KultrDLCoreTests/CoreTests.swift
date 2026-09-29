@@ -35,37 +35,37 @@ final class JSONTests: XCTestCase {
 
 final class TextTests: XCTestCase {
     func testCoreTitleDropsFeaturesAndRemasters() {
-        XCTAssertEqual(Text.coreTitle("Paper Boats (feat. Somebody)"), "paper boats")
-        XCTAssertEqual(Text.coreTitle("Paper Boats - 2011 Remastered Version"), "paper boats")
-        XCTAssertEqual(Text.coreTitle("Paper Boats [Remastered 2009]"), "paper boats")
-        XCTAssertEqual(Text.normalize("Café"), "cafe")
-        XCTAssertEqual(Text.normalize("Simon & Garfunkel"), "simon and garfunkel")
+        XCTAssertEqual(TextTools.coreTitle("Paper Boats (feat. Somebody)"), "paper boats")
+        XCTAssertEqual(TextTools.coreTitle("Paper Boats - 2011 Remastered Version"), "paper boats")
+        XCTAssertEqual(TextTools.coreTitle("Paper Boats [Remastered 2009]"), "paper boats")
+        XCTAssertEqual(TextTools.normalize("Café"), "cafe")
+        XCTAssertEqual(TextTools.normalize("Simon & Garfunkel"), "simon and garfunkel")
     }
 
     func testYouTubeTitles() {
-        let a = Text.artistAndTitle("Some Band - Paper Boats (Official Music Video)", channel: "SomeBandVEVO")
+        let a = TextTools.artistAndTitle("Some Band - Paper Boats (Official Music Video)", channel: "SomeBandVEVO")
         XCTAssertEqual(a.artist, "Some Band")
         XCTAssertEqual(a.title, "Paper Boats")
-        let b = Text.artistAndTitle("Paper Boats", channel: "Some Band - Topic")
+        let b = TextTools.artistAndTitle("Paper Boats", channel: "Some Band - Topic")
         XCTAssertEqual(b.artist, "Some Band")
         XCTAssertEqual(b.title, "Paper Boats")
     }
 
     func testClocksAndDates() {
-        XCTAssertEqual(Text.parseClock("3:45"), 225_000)
-        XCTAssertEqual(Text.parseClock("1:02:03"), 3_723_000)
-        XCTAssertNil(Text.parseClock("1.2M views"))
-        XCTAssertEqual(Text.parseIsoDuration("PT3M45S"), 225_000)
-        XCTAssertEqual(Text.year("2019-05-17T00:00:00Z"), 2019)
+        XCTAssertEqual(TextTools.parseClock("3:45"), 225_000)
+        XCTAssertEqual(TextTools.parseClock("1:02:03"), 3_723_000)
+        XCTAssertNil(TextTools.parseClock("1.2M views"))
+        XCTAssertEqual(TextTools.parseIsoDuration("PT3M45S"), 225_000)
+        XCTAssertEqual(TextTools.year("2019-05-17T00:00:00Z"), 2019)
     }
 
     func testSimilarityAndArtists() {
-        XCTAssertEqual(Text.similarity("Paper Boats", "paper boats"), 1.0)
-        XCTAssertLessThan(Text.similarity("Paper Boats", "Glass Houses"), 0.4)
-        XCTAssertEqual(Text.splitArtists("A, B & C"), ["A", "B", "C"])
-        XCTAssertEqual(Text.splitArtists("A feat. B"), ["A", "B"])
-        XCTAssertEqual(Text.fileName("A/B"), "A_B")
-        XCTAssertEqual(Text.unescapeHtml("Tom &amp; Jerry &#39;s &#x263A;"), "Tom & Jerry 's ☺")
+        XCTAssertEqual(TextTools.similarity("Paper Boats", "paper boats"), 1.0)
+        XCTAssertLessThan(TextTools.similarity("Paper Boats", "Glass Houses"), 0.4)
+        XCTAssertEqual(TextTools.splitArtists("A, B & C"), ["A", "B", "C"])
+        XCTAssertEqual(TextTools.splitArtists("A feat. B"), ["A", "B"])
+        XCTAssertEqual(TextTools.fileName("A/B"), "A_B")
+        XCTAssertEqual(TextTools.unescapeHtml("Tom &amp; Jerry &#39;s &#x263A;"), "Tom & Jerry 's ☺")
     }
 
     func testFormat() {

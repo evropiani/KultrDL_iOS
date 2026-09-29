@@ -66,7 +66,7 @@ public final class SoundCloud: @unchecked Sendable {
             subtitle: owner,
             artworkUrl: Self.artwork(json["artwork_url"].string),
             pageUrl: json["permalink_url"].string,
-            year: Text.year(json["release_date"].string ?? json["created_at"].string)
+            year: TextTools.year(json["release_date"].string ?? json["created_at"].string)
         )
         shell.tracks = stubs.enumerated().compactMap { i, t -> Track? in
             guard var track = Self.parseTrack(t, album: isAlbum ? shell : nil) else { return nil }
@@ -196,7 +196,7 @@ public final class SoundCloud: @unchecked Sendable {
             pageUrl: url,
             streamUrl: url,
             isrc: meta?["isrc"].string,
-            year: Text.year(t["release_date"].string ?? t["display_date"].string ?? t["created_at"].string),
+            year: TextTools.year(t["release_date"].string ?? t["display_date"].string ?? t["created_at"].string),
             genre: t["genre"].string?.nonEmpty,
             explicit: meta?["explicit"].bool == true
         )

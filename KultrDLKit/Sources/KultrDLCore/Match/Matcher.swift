@@ -16,7 +16,7 @@ public enum Matcher {
     public static let accept = 55.0
 
     public static func query(_ track: Track) -> String {
-        let artist = Text.splitArtists(track.artist).first ?? track.artist
+        let artist = TextTools.splitArtists(track.artist).first ?? track.artist
         return "\(artist) \(track.title)".trimmed()
     }
 
@@ -29,15 +29,15 @@ public enum Matcher {
 
     public static func score(_ target: Track, _ candidate: Track) -> Double {
         var score = 0.0
-        let targetTitle = Text.coreTitle(target.title)
-        let candidateTitle = Text.coreTitle(candidate.title)
-        score += 45 * Text.similarity(targetTitle, candidateTitle)
+        let targetTitle = TextTools.coreTitle(target.title)
+        let candidateTitle = TextTools.coreTitle(candidate.title)
+        score += 45 * TextTools.similarity(targetTitle, candidateTitle)
         if !targetTitle.isEmpty && candidateTitle.contains(targetTitle) { score += 5 }
 
         // Artist: any of the credited artists on either side.
-        let targetArtists = Text.splitArtists(target.artist).map(Text.normalize).filter { !$0.isEmpty }
-        let candidateArtistText = Text.normalize(candidate.artist)
-        let candidateTitleText = Text.normalize(candidate.title)
+        let targetArtists = TextTools.splitArtists(target.artist).map(TextTools.normalize).filter { !$0.isEmpty }
+        let candidateArtistText = TextTools.normalize(candidate.artist)
+        let candidateTitleText = TextTools.normalize(candidate.title)
         let artistHit = targetArtists.contains { a in
             candidateArtistText.contains(a) || (a.contains(candidateArtistText) && !candidateArtistText.isEmpty)
         }
@@ -46,7 +46,7 @@ public enum Matcher {
         } else if targetArtists.contains(where: { candidateTitleText.contains($0) }) {
             score += 20
         } else {
-            score += 30 * (targetArtists.map { Text.similarity($0, candidateArtistText) }.max() ?? 0) - 5
+            score += 30 * (targetArtists.map { TextTools.similarity($0, candidateArtistText) }.max() ?? 0) - 5
         }
 
         if let a = target.durationMs, let b = candidate.durationMs, a > 0, b > 0 {
@@ -61,10 +61,10 @@ public enum Matcher {
             }
         }
 
-        let targetText = " " + Text.normalize("\(target.title) \(target.album ?? "")") + " "
-        let candidateText = " " + Text.normalize(candidate.title) + " "
+        let targetText = " " + TextTools.normalize("\(target.title) \(target.album ?? "")") + " "
+        let candidateText = " " + TextTools.normalize(candidate.title) + " "
         for word in versionWords {
-            let w = " \(Text.normalize(word)) "
+            let w = " \(TextTools.normalize(word)) "
             let inTarget = targetText.contains(w)
             let inCandidate = candidateText.contains(w)
             if inCandidate && !inTarget { score -= 30 }

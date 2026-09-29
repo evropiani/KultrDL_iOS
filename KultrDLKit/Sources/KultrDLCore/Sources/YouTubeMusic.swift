@@ -91,7 +91,7 @@ public final class YouTubeMusic: @unchecked Sendable {
             title: title,
             artist: (artist ?? "Unknown artist").removingSuffix(" - Topic"),
             album: album,
-            durationMs: Text.parseClock(Self.text(Self.runs(row["lengthText"])).nonEmpty ?? row["lengthText"]?["simpleText"].string),
+            durationMs: TextTools.parseClock(Self.text(Self.runs(row["lengthText"])).nonEmpty ?? row["lengthText"]?["simpleText"].string),
             artworkUrl: Self.bigThumbnail(Self.thumbnail(row)),
             pageUrl: Self.watchUrl(videoId),
             streamUrl: Self.watchUrl(videoId),
@@ -211,7 +211,7 @@ public final class YouTubeMusic: @unchecked Sendable {
         if let albumRun = subtitle.first(where: { pageType($0)?.contains("ALBUM") == true }) { albumName = albumRun["text"].string }
         for segment in segments(subtitle) {
             let t = text(segment)
-            if let clock = Text.parseClock(t) {
+            if let clock = TextTools.parseClock(t) {
                 durationMs = clock
             } else if typeWords.contains(t.lowercased()) || views.matches(t) {
                 continue
@@ -222,7 +222,7 @@ public final class YouTubeMusic: @unchecked Sendable {
         if durationMs == nil {
             let fixed = row["fixedColumns"]?[0]?["musicResponsiveListItemFixedColumnRenderer"]?["text"]
             let t = text(runs(fixed))
-            durationMs = Text.parseClock(t.isEmpty ? (fixed?["simpleText"].string ?? "") : t)
+            durationMs = TextTools.parseClock(t.isEmpty ? (fixed?["simpleText"].string ?? "") : t)
         }
         let finalArtist = artist?.removingSuffix(" - Topic") ?? album?.subtitle ?? "Unknown artist"
         return Track(

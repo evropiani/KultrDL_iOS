@@ -100,18 +100,18 @@ public final class Bandcamp: @unchecked Sendable {
     }
 
     static func tralbum(_ html: String) -> JSON? {
-        tralbumAttr.group(html).flatMap { JSON.tryParse(Text.unescapeHtml($0)) }
+        tralbumAttr.group(html).flatMap { JSON.tryParse(TextTools.unescapeHtml($0)) }
     }
 
     public static func parsePage(_ html: String, url: String) -> LinkResult? {
         guard let data = tralbum(html) else { return nil }
-        let band = bandAttr.group(html).flatMap { JSON.tryParse(Text.unescapeHtml($0)) }
+        let band = bandAttr.group(html).flatMap { JSON.tryParse(TextTools.unescapeHtml($0)) }
         let artist = data["artist"].string ?? band?["name"].string ?? "Unknown artist"
         let current = data["current"]
         let albumTitle = current?["title"].string
         let artId = data["art_id"].int64 ?? current?["art_id"].int64
         let art = artId.map { "https://f4.bcbits.com/img/a\(String(format: "%010lld", $0))_10.jpg" }
-        let year = Text.year(data["album_release_date"].string.flatMap { d in
+        let year = TextTools.year(data["album_release_date"].string.flatMap { d in
             // "16 Oct 2020 00:00:00 GMT"
             Rx(#"(\d{4})"#).group(d)
         })

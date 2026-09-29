@@ -212,7 +212,7 @@ public final class Catalog: @unchecked Sendable {
         let watch = music ? YouTubeMusic.watchUrl(id) : YouTube.watchUrl(id)
         let oembed = try await http.getJSON("https://www.youtube.com/oembed?format=json&url=\(YouTube.watchUrl(id).urlQueryEncoded)")
         let raw = oembed["title"].string ?? "Video"
-        let (artist, title) = Text.artistAndTitle(raw, channel: oembed["author_name"].string)
+        let (artist, title) = TextTools.artistAndTitle(raw, channel: oembed["author_name"].string)
         return Track(
             id: "yt:\(id)",
             source: music ? .youtubeMusic : .youtube,
@@ -287,7 +287,7 @@ public final class Catalog: @unchecked Sendable {
             return .many(try await albumByName(entity.title, artist: artist, target: target, artwork: entity.artworkUrl))
         }
         return .single(Track(
-            id: "\(target.source.key):\(target.id ?? Text.normalize(entity.title))",
+            id: "\(target.source.key):\(target.id ?? TextTools.normalize(entity.title))",
             source: target.source,
             title: entity.title,
             artist: artist,
@@ -338,7 +338,7 @@ public final class Catalog: @unchecked Sendable {
             return .many(try await albumByName(pageTitle, artist: artist ?? "", target: target, artwork: meta.image))
         case .track:
             return .single(Track(
-                id: "\(key):\(target.id ?? Text.normalize(pageTitle))",
+                id: "\(key):\(target.id ?? TextTools.normalize(pageTitle))",
                 source: target.source,
                 title: pageTitle,
                 artist: artist ?? "Unknown artist",
@@ -354,13 +354,13 @@ public final class Catalog: @unchecked Sendable {
     private func albumByName(_ title: String, artist: String, target: LinkTarget, artwork: String?) async throws -> TrackCollection {
         let query = "\(artist) \(title)".trimmed()
         func pick(_ options: [TrackCollection]) -> TrackCollection? {
-            let core = Text.coreTitle(title)
+            let core = TextTools.coreTitle(title)
             return options
                 .max { a, b in
-                    Text.similarity(core, Text.coreTitle(a.title)) * 2 + Text.similarity(artist, a.subtitle ?? "")
-                        < Text.similarity(core, Text.coreTitle(b.title)) * 2 + Text.similarity(artist, b.subtitle ?? "")
+                    TextTools.similarity(core, TextTools.coreTitle(a.title)) * 2 + TextTools.similarity(artist, a.subtitle ?? "")
+                        < TextTools.similarity(core, TextTools.coreTitle(b.title)) * 2 + TextTools.similarity(artist, b.subtitle ?? "")
                 }
-                .flatMap { Text.similarity(core, Text.coreTitle($0.title)) > 0.6 ? $0 : nil }
+                .flatMap { TextTools.similarity(core, TextTools.coreTitle($0.title)) > 0.6 ? $0 : nil }
         }
         var found: TrackCollection?
         if let hit = pick((try? await deezer.searchAlbums(query)) ?? []) { found = try? await load(hit) }

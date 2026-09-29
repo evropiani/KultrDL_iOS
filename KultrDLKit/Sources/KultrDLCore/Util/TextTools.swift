@@ -1,7 +1,7 @@
 import Foundation
 
 /** Text helpers for comparing titles and names across services. */
-public enum Text {
+public enum TextTools {
     private static let marks = Rx(#"\p{M}+"#)
     private static let nonWord = Rx(#"[^\p{L}\p{N}]+"#)
     private static let feat = Rx(#"(?i)[(\[]\s*(feat\.?|ft\.?|featuring|with)\s[^)\]]*[)\]]"#)

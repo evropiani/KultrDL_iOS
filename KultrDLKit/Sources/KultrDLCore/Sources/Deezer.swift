@@ -49,7 +49,7 @@ public final class Deezer: @unchecked Sendable {
             artworkUrl: albumJSON?["cover_xl"].string ?? albumJSON?["cover_big"].string ?? album?.artworkUrl,
             pageUrl: r["link"].string,
             isrc: r["isrc"].string,
-            year: Text.year(r["release_date"].string) ?? album?.year,
+            year: TextTools.year(r["release_date"].string) ?? album?.year,
             trackNumber: r["track_position"].int,
             discNumber: r["disk_number"].int,
             explicit: r["explicit_lyrics"].bool == true
@@ -66,7 +66,7 @@ public final class Deezer: @unchecked Sendable {
             subtitle: r["artist"]?["name"].string,
             artworkUrl: r["cover_xl"].string ?? r["cover_big"].string,
             pageUrl: r["link"].string,
-            year: Text.year(r["release_date"].string),
+            year: TextTools.year(r["release_date"].string),
             trackCount: r["nb_tracks"].int
         )
     }
