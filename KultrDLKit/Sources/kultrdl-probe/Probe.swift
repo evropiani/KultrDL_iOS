@@ -129,6 +129,35 @@ struct Probe {
     // ----------------------------------------------------------- YouTube --
 
     static func youTube(_ youtube: YouTubePlayer) async {
+        section("YouTube challenge solver")
+        // The player script is static, so this works even where YouTube's pages turn the runner away.
+        var playerUrl: String?
+        await check("find the current player") {
+            let api = try await Http().get("https://www.youtube.com/iframe_api")
+            guard let id = Rx(#"player\\?/([0-9a-fA-F]{8,})\\?/"#).group(api) else { throw KultrError("no player id in iframe_api") }
+            let url = JSChallengeSolver.canonicalPlayerUrl("/s/player/\(id)/player_ias.vflset/en_US/base.js")
+            playerUrl = url
+            return url
+        }
+        if let playerUrl {
+            await check("signature timestamp") {
+                guard let sts = try await youtube.solver.signatureTimestamp(playerUrl) else { throw KultrError("none found") }
+                return "\(sts)"
+            }
+            await check("solve an n challenge") {
+                let challenge = "gB7bY8xwQZ3kE5p1"
+                let answers = try await youtube.solver.solveN([challenge], playerUrl: playerUrl)
+                guard let answer = answers[challenge], !answer.isEmpty, answer != challenge else { throw KultrError("no answer (\(answers))") }
+                return "\(challenge) → \(answer)"
+            }
+            await check("solve a signature") {
+                let scrambled = String((0..<104).map { i in Character(UnicodeScalar(UInt8(65 + i % 26))) })
+                let answers = try await youtube.solver.solveSignatures([scrambled], playerUrl: playerUrl)
+                guard let answer = answers[scrambled], !answer.isEmpty, answer != scrambled else { throw KultrError("no answer") }
+                return "\(scrambled.count) → \(answer.count) characters"
+            }
+        }
+
         section("YouTube player clients")
         let id = "5NV6Rdv1a3I"
         for client in EngineConfig.builtIn.clients {
