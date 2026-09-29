@@ -1,0 +1,11 @@
+.DS_Store
+build/
+out/
+DerivedData/
+.build/
+.swiftpm/
+*.xcuserstate
+xcuserdata/
+KultrDLKit/Package.resolved
+shots/
+*.log

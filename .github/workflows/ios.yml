@@ -1,0 +1,228 @@
+name: iOS
+
+on:
+  push:
+    branches: ["**", "!ci-screenshots"]
+    tags-ignore: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Tools
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Package tests
+        id: tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          swift build --package-path KultrDLKit 2>&1 | tee build-kit.log | grep -E "error:|warning: unre|Compiling|Build complete" | grep -v "^Compiling" || true
+          swift test --package-path KultrDLKit 2>&1 | tee tests.log | grep -E "error:|failed|passed|Executed|XCTAssert" ; exit ${PIPESTATUS[0]}
+
+      # The real sites, from the runner: search, links, YouTube streams, conversion
+      # and FTP/SFTP uploads to throwaway local servers. A report, never a gate:
+      # services refuse datacenter addresses now and then.
+      - name: Live check
+        if: steps.tests.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          pip3 install --quiet --break-system-packages pyftpdlib pyopenssl asyncssh 2>/dev/null || pip3 install --quiet pyftpdlib pyopenssl asyncssh || true
+          if [ -f .github/scripts/test-servers.py ]; then
+            python3 .github/scripts/test-servers.py > servers.log 2>&1 &
+            sleep 4
+          fi
+          swift run --package-path KultrDLKit kultrdl-probe 2>&1 | tee probe.log
+
+      - name: Build for the simulator (debug)
+        if: github.ref != 'refs/heads/main' && hashFiles('KultrDL.xcodeproj/project.pbxproj') != ''
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project KultrDL.xcodeproj \
+            -scheme KultrDL \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build.log | grep -E "error:|warning: unre|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build.log
+
+      - name: Screenshots in the simulator
+        if: github.ref != 'refs/heads/main' && hashFiles('KultrDL.xcodeproj/project.pbxproj') != ''
+        continue-on-error: true
+        timeout-minutes: 30
+        run: |
+          set -x
+          mkdir -p shots
+          xcrun simctl list runtimes > shots/runtimes.txt || true
+          # An iPhone Pro on the newest runtime whose name contains $1.
+          pick() {
+            xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          devices = json.load(sys.stdin)['devices']
+          runtimes = sorted((k for k in devices if 'iOS-' + sys.argv[1] in k), reverse=True)
+          for runtime in runtimes:
+              phones = [d for d in devices[runtime] if d['name'].startswith('iPhone') and 'Pro' in d['name'] and 'Max' not in d['name']]
+              if phones:
+                  print(phones[0]['udid']); break
+          " "$1"
+          }
+          # shoot <runtime> <prefix> <screens...>
+          shoot() {
+            local runtime=$1 prefix=$2; shift 2
+            local UDID; UDID=$(pick "$runtime")
+            [ -n "$UDID" ] || { echo "no iOS $runtime iPhone" > "shots/${prefix}missing.txt"; return 0; }
+            xcrun simctl boot "$UDID" || true
+            xcrun simctl bootstatus "$UDID" -b
+            xcrun simctl ui "$UDID" appearance "${LOOK:-dark}" || true
+            xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+            xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/KultrDL.app
+            for screen in "$@"; do
+              xcrun simctl terminate "$UDID" app.kultr.dl || true
+              DATA=$(xcrun simctl get_app_container "$UDID" app.kultr.dl data 2>/dev/null || true)
+              [ -n "$DATA" ] && rm -f "$DATA/Documents/.kultrdl-ready-$screen"
+              SIMCTL_CHILD_KULTRDL_SCREEN=$screen SIMCTL_CHILD_KULTRDL_LOOK=${LOOK:-dark} xcrun simctl launch "$UDID" app.kultr.dl
+              DATA=$(xcrun simctl get_app_container "$UDID" app.kultr.dl data)
+              for i in $(seq 1 90); do
+                [ -f "$DATA/Documents/.kultrdl-ready-$screen" ] && break
+                sleep 1
+              done
+              cat "$DATA/Documents/.kultrdl-ready-$screen" > "shots/$prefix$screen.txt" 2>/dev/null || echo "timed out" > "shots/$prefix$screen.txt"
+              xcrun simctl io "$UDID" screenshot "shots/$prefix$screen.png" || true
+            done
+            xcrun simctl spawn "$UDID" log show --last 20m --style compact --predicate 'process == "KultrDL"' > "shots/${prefix}log.txt" 2>&1 || true
+            xcrun simctl shutdown "$UDID" || true
+          }
+          shoot 26 "" home search found album player mini library downloads settings servers
+          shoot 18 "ios18-" home found mini
+          LOOK=light shoot 26 "light-" home found player
+
+      - name: Publish screenshots
+        if: always() && github.ref != 'refs/heads/main' && hashFiles('KultrDL.xcodeproj/project.pbxproj') != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          [ -d shots ] || exit 0
+          cp probe.log tests.log shots/ 2>/dev/null || true
+          cd shots
+          git init -q
+          git checkout -q -b ci-screenshots
+          git add .
+          git -c user.name="KultrDL CI" -c user.email="ci@kultrdl.invalid" commit -qm "Screenshots for ${GITHUB_SHA}"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-screenshots
+
+      - name: Build unsigned IPA (release)
+        if: github.ref == 'refs/heads/main' && hashFiles('KultrDL.xcodeproj/project.pbxproj') != ''
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project KultrDL.xcodeproj \
+            -scheme KultrDL \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            | tee build.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build.log
+          mkdir -p out/Payload
+          cp -R build/Build/Products/Release-iphoneos/KultrDL.app out/Payload/
+          (cd out && zip -qry KultrDL.ipa Payload)
+          ls -lh out/KultrDL.ipa
+
+      - name: Fail when the package tests failed
+        if: steps.tests.outcome == 'failure'
+        run: exit 1
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: |
+            build.log
+            build-kit.log
+            tests.log
+            probe.log
+            servers.log
+          if-no-files-found: ignore
+
+      - name: Upload IPA artifact
+        if: github.ref == 'refs/heads/main' && hashFiles('out/KultrDL.ipa') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: KultrDL-ipa
+          path: out/KultrDL.ipa
+
+      - name: Publish release
+        if: github.ref == 'refs/heads/main' && hashFiles('out/KultrDL.ipa') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=$(grep -m1 "MARKETING_VERSION" KultrDL.xcodeproj/project.pbxproj | sed -E 's/.*= ([^;]+);/\1/')
+          TAG="v${VERSION}"
+          NOTES_FILE=".github/release-notes/v${VERSION}.md"
+          if [ ! -f "$NOTES_FILE" ]; then
+            NOTES_FILE=$(mktemp)
+            printf '%s\n' \
+              "KultrDL for iOS ${VERSION}." \
+              "" \
+              "## Install" \
+              "" \
+              "Download **KultrDL.ipa** below and install it with Sideloadly (Windows, Mac), AltStore (Windows, Mac), SideStore or Impactor (Linux). New to this? Follow the step-by-step guide: https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/INSTALL.md" \
+              > "$NOTES_FILE"
+          fi
+          cp "$NOTES_FILE" notes.md
+          printf '\n_Build %s, commit %s._\n' "${{ github.run_number }}" "${GITHUB_SHA::7}" >> notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/KultrDL.ipa --clobber
+            gh release edit "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" out/KultrDL.ipa --title "KultrDL for iOS ${VERSION}" --notes-file notes.md --target "$GITHUB_SHA"
+          fi
+
+      # The AltStore / SideStore source lives in a gist (the one Kultr is in);
+      # this adds KultrDL to it the first time and each new release after
+      # that. Needs the GIST_TOKEN secret (a classic token with only the
+      # "gist" scope); without it the step skips quietly.
+      - name: Update the source gist
+        if: github.ref == 'refs/heads/main' && hashFiles('out/KultrDL.ipa') != ''
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID: ${{ vars.SOURCE_GIST_ID || '6e3a3c18525a228d03924674430c4d48' }}
+          BUILD: ${{ github.run_number }}
+          IPA: out/KultrDL.ipa
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_FILE: evropiani.json
+          DEVELOPER_NAME: evropiani
+          APP_DETAILS: .github/source/kultrdl.json
+        run: |
+          export VERSION=$(grep -m1 "MARKETING_VERSION" KultrDL.xcodeproj/project.pbxproj | sed -E 's/.*= ([^;]+);/\1/')
+          export NOTES_FILE=".github/release-notes/v${VERSION}.md"
+          python3 .github/scripts/update-source.py
