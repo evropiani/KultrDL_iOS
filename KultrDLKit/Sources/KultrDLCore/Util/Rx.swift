@@ -107,11 +107,13 @@ public struct Rx: @unchecked Sendable {
     public static func escape(_ s: String) -> String { NSRegularExpression.escapedPattern(for: s) }
 }
 
+extension StringProtocol {
+    public func trimmed() -> String { trimmingCharacters(in: .whitespacesAndNewlines) }
+}
+
 extension String {
     /** Nil when empty. */
     public var nonEmpty: String? { isEmpty ? nil : self }
-
-    public func trimmed() -> String { trimmingCharacters(in: .whitespacesAndNewlines) }
 
     /** The part before the first [separator], or all of it. */
     public func before(_ separator: String) -> String {

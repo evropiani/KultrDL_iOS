@@ -128,7 +128,10 @@ public enum ArtworkColor {
     public static func mix(_ a: UInt32, _ b: UInt32, _ amount: Double) -> UInt32 {
         let t = min(1, max(0, amount))
         func ch(_ shift: UInt32) -> Int {
-            Int((Double((a >> shift) & 0xff) * (1 - t) + Double((b >> shift) & 0xff) * t).rounded())
+            let x = Double((a >> shift) & 0xff)
+            let y = Double((b >> shift) & 0xff)
+            let mixed: Double = x * (1 - t) + y * t
+            return Int(mixed.rounded())
         }
         return rgb(ch(16), ch(8), ch(0))
     }

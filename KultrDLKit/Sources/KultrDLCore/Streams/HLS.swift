@@ -51,7 +51,7 @@ public enum HLS {
                 guard let next = all[(i + 1)...].first(where: { !$0.hasPrefix("#") }) else { continue }
                 let codecs = codecsPattern.group(line) ?? ""
                 let audioOnly = !codecs.isEmpty && codecs.split(separator: ",").allSatisfy { c in
-                    let t = c.trimmed()
+                    let t = String(c).trimmed()
                     return t.hasPrefix("mp4a") || t.hasPrefix("opus") || t.hasPrefix("mp3") || t.hasPrefix("ac-3") || t.hasPrefix("ec-3") || t.hasPrefix("flac")
                 }
                 out.append(Variant(

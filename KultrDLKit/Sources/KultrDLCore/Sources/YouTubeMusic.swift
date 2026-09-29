@@ -54,7 +54,8 @@ public final class YouTubeMusic: @unchecked Sendable {
             tracks += more
         }
         guard !tracks.isEmpty else { return nil }
-        let header = Self.header(root) ?? Self.header(try await browse(browseId))
+        var header = Self.header(root)
+        if header == nil { header = Self.header(try await browse(browseId)) }
         let title = header.flatMap { Self.text(Self.runs($0["title"])).nonEmpty } ?? "Playlist"
         let subtitle = header.flatMap { h in Self.segments(Self.runs(h["subtitle"])).map { Self.text($0) }.first { !$0.isEmpty } }
         return TrackCollection(
