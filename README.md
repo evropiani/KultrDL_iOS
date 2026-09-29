@@ -51,7 +51,7 @@ work natively:
   → Engine → **Test YouTube** tries every client and writes a report.
 - **Conversion** uses LAME, libFLAC, libopus/libopusenc and libvorbis, plus
   AVFoundation for AAC and ALAC, with a WebM demuxer, Ogg Opus remuxing, and
-  ID3v2.4, Vorbis comment, FLAC picture and MP4 tag writers.
+  ID3v2.3, Vorbis comment, FLAC picture and MP4 tag writers.
 - **FTP/FTPS** is written on Apple's networking, **SFTP** on SwiftNIO SSH.
 
 ## Getting it

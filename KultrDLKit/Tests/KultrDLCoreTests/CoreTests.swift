@@ -436,13 +436,15 @@ final class MediaFileTests: XCTestCase {
         var tags = TrackTags(title: "Paper Boats", artist: "Some Band", album: "Harbour", year: 2012, trackNumber: 3)
         tags.cover = Data([0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3])
         let tag = [UInt8](ID3.tag(tags))
-        XCTAssertEqual(Array(tag.prefix(4)), [0x49, 0x44, 0x33, 0x04])
+        XCTAssertEqual(Array(tag.prefix(4)), [0x49, 0x44, 0x33, 0x03])
         XCTAssertEqual(ID3.tagSize(tag), tag.count)
         let text = String(decoding: tag, as: UTF8.self)
         XCTAssertTrue(text.contains("TIT2"))
         XCTAssertTrue(text.contains("Paper Boats"))
         XCTAssertTrue(text.contains("APIC"))
         XCTAssertTrue(text.contains("image/jpeg"))
+        XCTAssertEqual(ID3.encoded("Björk"), [0x00, 0x42, 0x6A, 0xF6, 0x72, 0x6B])
+        XCTAssertEqual(ID3.encoded("日"), [0x01, 0xFF, 0xFE, 0xE5, 0x65])
     }
 
     func testVorbisComments() {

@@ -75,7 +75,7 @@ final class TranscoderTests: XCTestCase {
         let cbr = try await convert(.mp3, .k320)
         try await assertPlayable(cbr)
         let head = [UInt8](try Data(contentsOf: cbr).prefix(4))
-        XCTAssertEqual(head, [0x49, 0x44, 0x33, 0x04])
+        XCTAssertEqual(head, [0x49, 0x44, 0x33, 0x03])
         try await assertPlayable(try await convert(.mp3, .v0))
     }
 

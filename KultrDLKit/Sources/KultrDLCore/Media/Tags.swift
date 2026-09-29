@@ -65,19 +65,23 @@ struct ByteWriter {
     mutating func append(_ b: [UInt8]) { bytes += b }
 }
 
-/** ID3v2.4 tags, for MP3 (in front of the audio) and WAV (in an "id3 " chunk). */
+/**
+ * ID3v2.3 tags, for MP3 (in front of the audio) and WAV (in an "id3 "
+ * chunk). v2.3 rather than v2.4: it is the version every player reads,
+ * AVFoundation, the Music app and Windows Explorer included.
+ */
 public enum ID3 {
     public static func tag(_ tags: TrackTags) -> Data {
         var frames = ByteWriter()
         func text(_ id: String, _ value: String?) {
             guard let value, !value.isEmpty else { return }
-            frame(&frames, id, [0x03] + Array(value.utf8))
+            frame(&frames, id, encoded(value))
         }
         text("TIT2", tags.title)
         text("TPE1", tags.artist)
         text("TALB", tags.album)
         text("TPE2", tags.albumArtist)
-        text("TDRC", tags.year.map(String.init))
+        text("TYER", tags.year.map(String.init))
         text("TRCK", tags.trackNumber.map(String.init))
         text("TPOS", tags.discNumber.map(String.init))
         text("TCON", tags.genre)
@@ -96,16 +100,27 @@ public enum ID3 {
         let padding = [UInt8](repeating: 0, count: 1024)
         var out = ByteWriter()
         out.ascii("ID3")
-        out.append([0x04, 0x00, 0x00])
+        out.append([0x03, 0x00, 0x00])
         out.append(syncsafe(frames.bytes.count + padding.count))
         out.append(frames.bytes)
         out.append(padding)
         return Data(out.bytes)
     }
 
+    /** A text frame's body: ISO-8859-1 when the text fits it, UTF-16 with a byte order mark otherwise. */
+    static func encoded(_ value: String) -> [UInt8] {
+        if value.unicodeScalars.allSatisfy({ $0.value < 0x100 }) {
+            return [0x00] + value.unicodeScalars.map { UInt8($0.value) }
+        }
+        var bytes: [UInt8] = [0x01, 0xFF, 0xFE]
+        for unit in value.utf16 { bytes += [UInt8(unit & 0xff), UInt8(unit >> 8)] }
+        return bytes
+    }
+
+    /** A v2.3 frame: plain 32-bit size (v2.4 would be syncsafe). */
     private static func frame(_ w: inout ByteWriter, _ id: String, _ body: [UInt8]) {
         w.ascii(id)
-        w.append(syncsafe(body.count))
+        w.u32be(UInt32(body.count))
         w.append([0, 0])
         w.append(body)
     }

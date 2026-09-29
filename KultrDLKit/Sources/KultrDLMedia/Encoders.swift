@@ -17,7 +17,7 @@ protocol PCMEncoder: AnyObject {
 
 // ------------------------------------------------------------------ MP3 --
 
-/** MP3 through LAME, with an ID3v2.4 tag in front and a LAME/Xing header so players see the right length. */
+/** MP3 through LAME, with an ID3v2.3 tag in front and a LAME/Xing header so players see the right length. */
 final class MP3Encoder: PCMEncoder {
     private let lame: OpaquePointer
     private let handle: FileHandle
