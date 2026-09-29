@@ -28,7 +28,6 @@ enum MP4Tags {
         text(.iTunesMetadataKeyAlbumArtist, tags.albumArtist)
         text(.iTunesMetadataKeyReleaseDate, tags.year.map(String.init))
         text(.iTunesMetadataKeyUserGenre, tags.genre)
-        text(.iTunesMetadataKeyISRC, tags.isrc)
         if let n = tags.trackNumber {
             add(.iTunesMetadataKeyTrackNumber, Data([0, 0, UInt8((n >> 8) & 0xff), UInt8(n & 0xff), 0, 0, 0, 0]) as NSData)
         }

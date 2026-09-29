@@ -114,7 +114,7 @@ public enum ID3 {
         [UInt8((n >> 21) & 0x7f), UInt8((n >> 14) & 0x7f), UInt8((n >> 7) & 0x7f), UInt8(n & 0x7f)]
     }
 
-    static func mimeType(_ image: Data) -> String {
+    public static func mimeType(_ image: Data) -> String {
         image.starts(with: [0x89, 0x50, 0x4E, 0x47]) ? "image/png" : "image/jpeg"
     }
 

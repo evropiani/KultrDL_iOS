@@ -236,7 +236,7 @@ final class VorbisEncoder: PCMEncoder {
         // Managed average bitrate, as ffmpeg's -b:a gives.
         guard vorbis_encode_init(info, channels, Int(sampleRate), -1, kbps * 1000, -1) == 0 else {
             vorbis_info_clear(info)
-            Self.release([info, comment, dsp, block, stream, page, packet])
+            Self.release([UnsafeMutableRawPointer(info), UnsafeMutableRawPointer(comment), UnsafeMutableRawPointer(dsp), UnsafeMutableRawPointer(block), UnsafeMutableRawPointer(stream), UnsafeMutableRawPointer(page), UnsafeMutableRawPointer(packet)])
             throw KultrError("The Vorbis encoder refused \(kbps) kbps at this sample rate.")
         }
         vorbis_comment_init(comment)
@@ -318,7 +318,7 @@ final class VorbisEncoder: PCMEncoder {
         vorbis_dsp_clear(dsp)
         vorbis_comment_clear(comment)
         vorbis_info_clear(info)
-        Self.release([info, comment, dsp, block, stream, page, packet])
+        Self.release([UnsafeMutableRawPointer(info), UnsafeMutableRawPointer(comment), UnsafeMutableRawPointer(dsp), UnsafeMutableRawPointer(block), UnsafeMutableRawPointer(stream), UnsafeMutableRawPointer(page), UnsafeMutableRawPointer(packet)])
     }
 
     deinit {

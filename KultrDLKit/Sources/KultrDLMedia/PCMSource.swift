@@ -134,7 +134,7 @@ final class WebMOpusSource: PCMSource {
             index += 1
             let count: Int32 = packet.withUnsafeBytes { raw in
                 output.withUnsafeMutableBufferPointer { out in
-                    opus_decode_float(decoder, raw.bindMemory(to: UInt8.self).baseAddress, Int32(raw.count), out.baseAddress, 5760, 0)
+                    opus_decode_float(decoder, raw.bindMemory(to: UInt8.self).baseAddress, Int32(raw.count), out.baseAddress!, 5760, 0)
                 }
             }
             if count < 0 { continue } // A damaged packet: carry on, as players do.
