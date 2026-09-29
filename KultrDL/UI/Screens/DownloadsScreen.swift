@@ -123,6 +123,7 @@ struct DownloadsScreen: View {
 
 private func presetLabel(_ job: DownloadJob) -> String { job.preset.label }
 
+@MainActor
 private func serverName(_ job: DownloadJob) -> String? {
     job.destination.map { d in AppGraph.shared.servers.get(d.serverId)?.name ?? "a removed server" }
 }
