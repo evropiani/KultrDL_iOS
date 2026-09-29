@@ -32,23 +32,28 @@ def log(*parts):
 
 def make_keys():
     os.makedirs(KEYS, exist_ok=True)
+    # (file name, algorithm, format, passphrase, cipher); names ending in
+    # "-pass" are read with the passphrase "keypass".
     wanted = [
-        ("ed25519", "ssh-ed25519", "openssh", None),
-        ("ecdsa", "ecdsa-sha2-nistp256", "openssh", None),
-        ("rsa", "ssh-rsa", "openssh", None),
-        ("ed25519-pass", "ssh-ed25519", "openssh", "keypass"),
-        ("rsa-pass", "ssh-rsa", "openssh", "keypass"),
-        ("rsa-pem", "ssh-rsa", "pkcs1-pem", None),
-        ("ecdsa-pem", "ecdsa-sha2-nistp384", "pkcs1-pem", None),
-        ("pkcs8-ed25519", "ssh-ed25519", "pkcs8-pem", None),
+        ("ed25519", "ssh-ed25519", "openssh", None, None),
+        ("ecdsa", "ecdsa-sha2-nistp256", "openssh", None, None),
+        ("rsa", "ssh-rsa", "openssh", None, None),
+        ("ed25519-pass", "ssh-ed25519", "openssh", "keypass", "aes256-ctr"),
+        ("rsa-pass", "ssh-rsa", "openssh", "keypass", "aes256-ctr"),
+        ("ecdsa-gcm-pass", "ecdsa-sha2-nistp256", "openssh", "keypass", "aes256-gcm@openssh.com"),
+        ("ed25519-cbc-pass", "ssh-ed25519", "openssh", "keypass", "aes128-cbc"),
+        ("rsa-pem", "ssh-rsa", "pkcs1-pem", None, None),
+        ("rsa-pem-pass", "ssh-rsa", "pkcs1-pem", "keypass", "aes256-cbc"),
+        ("ecdsa-pem", "ecdsa-sha2-nistp384", "pkcs1-pem", None, None),
+        ("pkcs8-ed25519", "ssh-ed25519", "pkcs8-pem", None, None),
     ]
     public = []
-    for name, alg, fmt, passphrase in wanted:
+    for name, alg, fmt, passphrase, cipher in wanted:
         try:
             key = asyncssh.generate_private_key(alg, key_size=2048) if alg == "ssh-rsa" else asyncssh.generate_private_key(alg)
             path = os.path.join(KEYS, name)
             if passphrase:
-                key.write_private_key(path, format_name=fmt, passphrase=passphrase, cipher_name="aes256-ctr")
+                key.write_private_key(path, format_name=fmt, passphrase=passphrase, cipher_name=cipher)
             else:
                 key.write_private_key(path, format_name=fmt)
             with open(path) as f:

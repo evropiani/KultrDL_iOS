@@ -307,7 +307,10 @@ struct Probe {
         await roundTrip("FTPS explicit", Connection(serverProtocol: .ftps, host: "127.0.0.1", port: 2122, username: "kultr", password: "secret"))
         await roundTrip("FTPS implicit", Connection(serverProtocol: .ftpsImplicit, host: "127.0.0.1", port: 2123, username: "kultr", password: "secret"))
         await roundTrip("SFTP password", Connection(serverProtocol: .sftp, host: "127.0.0.1", port: 2222, username: "kultr", password: "secret"))
-        for key in ["ed25519", "ecdsa", "rsa", "ed25519-pass", "rsa-pass", "rsa-pem", "ecdsa-pem", "pkcs8-ed25519"] {
+        for key in [
+            "ed25519", "ecdsa", "rsa", "ed25519-pass", "rsa-pass", "ecdsa-gcm-pass", "ed25519-cbc-pass",
+            "rsa-pem", "rsa-pem-pass", "ecdsa-pem", "pkcs8-ed25519",
+        ] {
             let path = keysDir.appendingPathComponent(key)
             guard let text = try? String(contentsOf: path, encoding: .utf8) else {
                 print("  skip  SFTP key \(key) (no \(path.path))")

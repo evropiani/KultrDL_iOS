@@ -11,7 +11,8 @@ import PackageDescription
 // - KultrDLMedia: turning a downloaded stream into FLAC, MP3, AAC, Opus,
 //   ALAC, WAV or Ogg Vorbis with tags and cover art (what ffmpeg does on
 //   Android), with libFLAC, LAME, libopus, libvorbis and AVFoundation.
-// - KultrDLRemote: FTP, FTPS and SFTP uploads.
+// - KultrDLRemote: FTP, FTPS and SFTP uploads, with CBcryptPBKDF (OpenBSD's
+//   bcrypt_pbkdf) for passphrase-protected OpenSSH keys.
 //
 // The app links all three; `swift test` runs the tests on a Mac.
 let package = Package(
@@ -56,10 +57,12 @@ let package = Package(
                 .product(name: "opus", package: "opus-binary-xcframework"),
             ]
         ),
+        .target(name: "CBcryptPBKDF"),
         .target(
             name: "KultrDLRemote",
             dependencies: [
                 "KultrDLCore",
+                "CBcryptPBKDF",
                 .product(name: "Citadel", package: "Citadel"),
                 .product(name: "NIOSSH", package: "swift-nio-ssh"),
                 .product(name: "NIOCore", package: "swift-nio"),

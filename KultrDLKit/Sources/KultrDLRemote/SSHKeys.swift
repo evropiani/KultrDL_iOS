@@ -1,4 +1,5 @@
 import Citadel
+import CBcryptPBKDF
 import CommonCrypto
 import Crypto
 import Foundation
@@ -7,9 +8,9 @@ import NIOSSH
 
 /**
  * Private keys as people have them: OpenSSH ("BEGIN OPENSSH PRIVATE KEY",
- * with or without a passphrase for Ed25519 and RSA), PEM (PKCS#1, SEC1 and
- * PKCS#8, including the older passphrase-protected PEM), and unencrypted
- * PuTTY files. Ed25519, ECDSA (P-256, P-384, P-521) and RSA.
+ * with or without a passphrase), PEM (PKCS#1, SEC1 and PKCS#8, including the
+ * older passphrase-protected PEM), and unencrypted PuTTY files. Ed25519,
+ * ECDSA (P-256, P-384, P-521) and RSA.
  */
 enum SSHKeys {
     static func parse(_ raw: String, passphrase: String) throws -> NIOSSHPrivateKey {
@@ -35,31 +36,44 @@ enum SSHKeys {
 
     // ---------------------------------------------------------- OpenSSH --
 
+    /**
+     * "openssh-key-v1": read here rather than by Citadel, which refuses keys
+     * made with 32 or more bcrypt rounds and knows only the CTR ciphers.
+     */
     private static func openSSH(_ text: String, passphrase: String) throws -> NIOSSHPrivateKey {
         guard let pem = PEM(text) else { throw RemoteError("The OpenSSH key couldn't be read.") }
         var r = SSHReader(pem.der)
-        guard r.take(15) == Array("openssh-key-v1\0".utf8) else { throw RemoteError("The OpenSSH key couldn't be read.") }
-        let cipher = String(decoding: r.string() ?? [], as: UTF8.self)
-        _ = r.string() // kdf
-        _ = r.string() // kdf options
-        _ = r.uint32() // number of keys
-        var pub = SSHReader(r.string() ?? [])
-        let type = String(decoding: pub.string() ?? [], as: UTF8.self)
-        let decryption = passphrase.isEmpty ? nil : Data(passphrase.utf8)
-        let normalised = "-----BEGIN OPENSSH PRIVATE KEY-----\n" + pem.der.base64EncodedString() + "\n-----END OPENSSH PRIVATE KEY-----"
+        guard r.take(15) == Array("openssh-key-v1\0".utf8),
+              let cipherName = r.string(), let kdfName = r.string(), let kdfOptions = r.string(),
+              r.uint32() != nil, r.string() != nil, // number of keys, public key
+              var section = r.string()
+        else { throw RemoteError("The OpenSSH key couldn't be read.") }
+        let cipher = String(decoding: cipherName, as: UTF8.self)
+        if cipher != "none" {
+            guard !passphrase.isEmpty else { throw RemoteError("The key needs its passphrase.") }
+            section = try decryptOpenSSH(
+                section, tag: r.take(16), cipher: cipher, kdf: String(decoding: kdfName, as: UTF8.self),
+                options: kdfOptions, passphrase: passphrase
+            )
+        }
+        var priv = SSHReader(section)
+        guard let check1 = priv.uint32(), let check2 = priv.uint32() else { throw RemoteError("The OpenSSH key couldn't be read.") }
+        guard check1 == check2 else {
+            throw RemoteError(cipher == "none" ? "The OpenSSH key couldn't be read." : "The passphrase doesn't open the key.")
+        }
+        let type = String(decoding: priv.string() ?? [], as: UTF8.self)
         switch type {
         case "ssh-ed25519":
-            return NIOSSHPrivateKey(ed25519Key: try Curve25519.Signing.PrivateKey(sshEd25519: normalised, decryptionKey: decryption))
-        case "ssh-rsa":
-            return NIOSSHPrivateKey(custom: try Insecure.RSA.PrivateKey(sshRsa: normalised, decryptionKey: decryption))
-        case "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521":
-            guard cipher == "none" else {
-                throw RemoteError("Passphrase-protected ECDSA keys in OpenSSH format aren't supported. Remove the passphrase (ssh-keygen -p) or use an Ed25519 key.")
+            guard priv.string() != nil, let secret = priv.string(), secret.count == 64 else {
+                throw RemoteError("The Ed25519 key couldn't be read.")
             }
-            var priv = SSHReader(r.string() ?? [])
-            _ = priv.uint32()
-            _ = priv.uint32()
-            _ = priv.string() // type
+            return NIOSSHPrivateKey(ed25519Key: try Curve25519.Signing.PrivateKey(rawRepresentation: Array(secret.prefix(32))))
+        case "ssh-rsa":
+            guard let n = priv.string(), let e = priv.string(), let d = priv.string(),
+                  let iqmp = priv.string(), let p = priv.string(), let q = priv.string()
+            else { throw RemoteError("The RSA key couldn't be read.") }
+            return try rsa(n: n, e: e, d: d, iqmp: iqmp, p: p, q: q)
+        case "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521":
             _ = priv.string() // curve
             _ = priv.string() // public point
             guard let d = priv.string() else { throw RemoteError("The ECDSA key couldn't be read.") }
@@ -67,6 +81,71 @@ enum SSHKeys {
         default:
             throw RemoteError("Keys of the type “\(type)” aren't supported. Use Ed25519, ECDSA or RSA.")
         }
+    }
+
+    /** The private half of a passphrase-protected OpenSSH key: bcrypt_pbkdf, then AES in CTR, CBC or GCM mode. */
+    private static func decryptOpenSSH(
+        _ data: [UInt8], tag: [UInt8]?, cipher: String, kdf: String, options: [UInt8], passphrase: String
+    ) throws -> [UInt8] {
+        guard kdf == "bcrypt" else { throw RemoteError("Keys protected with “\(kdf)” aren't supported.") }
+        var o = SSHReader(options)
+        guard let salt = o.string(), !salt.isEmpty, let rounds = o.uint32(), rounds > 0 else {
+            throw RemoteError("The key's encryption header can't be read.")
+        }
+        let (keyLength, ivLength): (Int, Int)
+        switch cipher {
+        case "aes128-ctr", "aes128-cbc": (keyLength, ivLength) = (16, 16)
+        case "aes192-ctr", "aes192-cbc": (keyLength, ivLength) = (24, 16)
+        case "aes256-ctr", "aes256-cbc": (keyLength, ivLength) = (32, 16)
+        case "aes128-gcm@openssh.com": (keyLength, ivLength) = (16, 12)
+        case "aes256-gcm@openssh.com": (keyLength, ivLength) = (32, 12)
+        default:
+            throw RemoteError("Keys encrypted with \(cipher) aren't supported. Change it with “ssh-keygen -p -Z aes256-ctr -f key”.")
+        }
+        let pass = Array(passphrase.utf8)
+        var derived = [UInt8](repeating: 0, count: keyLength + ivLength)
+        guard kdl_bcrypt_pbkdf(pass, pass.count, salt, salt.count, &derived, derived.count, rounds) == 0 else {
+            throw RemoteError("The key's encryption header can't be read.")
+        }
+        let key = Array(derived[..<keyLength])
+        let iv = Array(derived[keyLength...])
+        if cipher.hasSuffix("gcm@openssh.com") {
+            guard let tag, tag.count == 16 else { throw RemoteError("The OpenSSH key couldn't be read.") }
+            do {
+                let box = try AES.GCM.SealedBox(nonce: AES.GCM.Nonce(data: iv), ciphertext: data, tag: tag)
+                return Array(try AES.GCM.open(box, using: SymmetricKey(data: key)))
+            } catch {
+                throw RemoteError("The passphrase doesn't open the key.")
+            }
+        }
+        guard !data.isEmpty, data.count % 16 == 0 else { throw RemoteError("The OpenSSH key couldn't be read.") }
+        if cipher.hasSuffix("-cbc") { return try aes(data, key: key, iv: iv, operation: CCOperation(kCCDecrypt)) }
+        // CTR: the key stream is the big-endian counter, starting at the IV, encrypted block by block.
+        var counters: [UInt8] = []
+        counters.reserveCapacity(data.count)
+        var counter = iv
+        for _ in 0..<(data.count / 16) {
+            counters += counter
+            for i in stride(from: 15, through: 0, by: -1) {
+                counter[i] &+= 1
+                if counter[i] != 0 { break }
+            }
+        }
+        let stream = try aes(counters, key: key, iv: nil, operation: CCOperation(kCCEncrypt))
+        return zip(data, stream).map { $0 ^ $1 }
+    }
+
+    /** AES without padding: CBC with an IV, ECB without. */
+    private static func aes(_ input: [UInt8], key: [UInt8], iv: [UInt8]?, operation: CCOperation) throws -> [UInt8] {
+        var out = [UInt8](repeating: 0, count: input.count + 16)
+        var moved = 0
+        let status = CCCrypt(
+            operation, CCAlgorithm(kCCAlgorithmAES), CCOptions(iv == nil ? kCCOptionECBMode : 0),
+            key, key.count, iv ?? [UInt8](repeating: 0, count: 16),
+            input, input.count, &out, out.count, &moved
+        )
+        guard status == kCCSuccess else { throw RemoteError("The key couldn't be decrypted.") }
+        return Array(out.prefix(moved))
     }
 
     // -------------------------------------------------------------- PEM --
