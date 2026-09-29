@@ -248,15 +248,22 @@ struct ServerEditorScreen: View {
             AppGraph.shared.messages.error("That doesn't look like a private key. Choose the key file without .pub.")
             return
         }
-        draft?.privateKey = trimmed
-        // Read it now, so a key KultrDL can't use is found here rather than at sign-in.
-        do {
-            let kind = try Remote.checkKey(trimmed, passphrase: draft?.passphrase ?? "")
-            draft?.keyName = "\(name) · \(kind)"
-        } catch {
-            draft?.keyName = name
-            let message = describe(error)
-            if !message.contains("passphrase") { AppGraph.shared.messages.error(message) }
+        guard let current = draft else { return }
+        current.privateKey = trimmed
+        current.keyName = name
+        let passphrase = current.passphrase
+        // Read it now, so a key KultrDL can't use is found here rather than at sign-in;
+        // off the main thread, as a passphrase-protected key takes a moment to open.
+        Task {
+            let result = await Task.detached { Result(catching: { try Remote.checkKey(trimmed, passphrase: passphrase) }) }.value
+            guard current.privateKey == trimmed else { return }
+            switch result {
+            case .success(let kind):
+                current.keyName = "\(name) · \(kind)"
+            case .failure(let error):
+                let message = describe(error)
+                if !message.contains("passphrase") { AppGraph.shared.messages.error(message) }
+            }
         }
     }
 
