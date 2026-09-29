@@ -55,10 +55,12 @@ jobs:
           pip3 install --quiet --break-system-packages pyftpdlib pyopenssl asyncssh bcrypt 2>/dev/null || pip3 install --quiet pyftpdlib pyopenssl asyncssh bcrypt || true
           export KULTRDL_TEST_KEYS="$RUNNER_TEMP/kultrdl-test-keys"
           if [ -f .github/scripts/test-servers.py ]; then
-            python3 .github/scripts/test-servers.py > servers.log 2>&1 &
+            python3 -u .github/scripts/test-servers.py > servers.log 2>&1 &
             sleep 8
           fi
-          swift run --package-path KultrDLKit kultrdl-probe 2>&1 | tee probe.log
+          swift run --package-path KultrDLKit kultrdl-probe 2>&1 | grep -v "nl.orlandos.citadel" | tee probe.log
+          echo "== test servers (last lines)"
+          tail -n 60 servers.log 2>/dev/null || true
 
       - name: Build for the simulator (debug)
         if: github.ref != 'refs/heads/main' && hashFiles('KultrDL.xcodeproj/project.pbxproj') != ''

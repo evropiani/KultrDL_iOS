@@ -103,7 +103,7 @@ final class SFTPSession: RemoteSession, @unchecked Sendable {
             } catch let error as RemoteError {
                 throw error
             } catch {
-                throw RemoteError("The private key couldn't be read\(c.passphrase.isEmpty ? " (does it need a passphrase?)" : " — check the passphrase").")
+                throw RemoteError("The private key couldn't be read\(c.passphrase.isEmpty ? " (does it need a passphrase?)" : " — check the passphrase") (\(error)).")
             }
         }
         let hostKeys = PinnedHostKey(pin: c.pin)
@@ -210,12 +210,13 @@ final class SFTPSession: RemoteSession, @unchecked Sendable {
     }
 
     func upload(_ file: URL, to path: String, progress: @escaping @Sendable (Int64) -> Void) async throws {
+        // Straight to the final name: Citadel's RENAME carries a field only SFTP v5 has, which
+        // v3 servers (most of them) turn down, so there is no writing to ".part" and renaming.
         let target = RemotePath.resolve(home, path)
-        let partial = target + ".part"
         let input = try FileHandle(forReadingFrom: file)
         defer { try? input.close() }
         let remote = try await guarded("write", target) {
-            try await sftp.openFile(filePath: partial, flags: [.write, .create, .truncate])
+            try await sftp.openFile(filePath: target, flags: [.write, .create, .truncate])
         }
         var offset: UInt64 = 0
         do {
@@ -229,11 +230,10 @@ final class SFTPSession: RemoteSession, @unchecked Sendable {
             try await remote.close()
         } catch {
             try? await remote.close()
+            // Don't leave half a file behind.
+            try? await sftp.remove(at: target)
             throw error
         }
-        // SFTP v3 can't rename over a file, so the old one goes first.
-        try? await sftp.remove(at: target)
-        try await guarded("rename", target) { try await sftp.rename(at: partial, to: target) }
     }
 
     func delete(_ path: String) async throws {
@@ -249,6 +249,28 @@ final class SFTPSession: RemoteSession, @unchecked Sendable {
 
 /** Opens FTP, FTPS and SFTP connections. */
 public enum Remote {
+    /**
+     * Reads a private key as sign-in would, and names its kind ("Ed25519",
+     * "ECDSA", "RSA"). Throws with a message when it can't be read or the
+     * passphrase is wrong.
+     */
+    public static func checkKey(_ text: String, passphrase: String) throws -> String {
+        let key: NIOSSHPrivateKey
+        do {
+            key = try SSHKeys.parse(text, passphrase: passphrase)
+        } catch let error as RemoteError {
+            throw error
+        } catch {
+            throw RemoteError("The private key couldn't be read\(passphrase.isEmpty ? " (does it need a passphrase?)" : " — check the passphrase") (\(error)).")
+        }
+        let type = String(openSSHPublicKey: key.publicKey).before(" ")
+        switch type {
+        case "ssh-ed25519": return "Ed25519"
+        case "ssh-rsa": return "RSA"
+        default: return type.hasPrefix("ecdsa") ? "ECDSA " + type.afterLast("-").uppercased() : type
+        }
+    }
+
     public static func open(_ connection: Connection) async throws -> RemoteSession {
         guard !connection.host.trimmed().isEmpty else { throw RemoteError("Enter the server's address.") }
         switch connection.serverProtocol {

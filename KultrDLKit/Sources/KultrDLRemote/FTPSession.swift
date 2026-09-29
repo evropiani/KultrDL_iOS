@@ -304,6 +304,9 @@ final class FTPSession: RemoteSession, @unchecked Sendable {
         if tls { data.secure() }
         try await body(data)
         data.task.closeWrite()
+        // Over TLS a half-close doesn't reach the server, which then waits for more data
+        // before it says "226": the whole connection has to go.
+        if tls { data.close() }
         let done = try await Self.reply(control)
         guard done.positive else { throw fail(action, path, done) }
     }

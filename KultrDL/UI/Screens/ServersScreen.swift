@@ -249,7 +249,15 @@ struct ServerEditorScreen: View {
             return
         }
         draft?.privateKey = trimmed
-        draft?.keyName = name
+        // Read it now, so a key KultrDL can't use is found here rather than at sign-in.
+        do {
+            let kind = try Remote.checkKey(trimmed, passphrase: draft?.passphrase ?? "")
+            draft?.keyName = "\(name) · \(kind)"
+        } catch {
+            draft?.keyName = name
+            let message = describe(error)
+            if !message.contains("passphrase") { AppGraph.shared.messages.error(message) }
+        }
     }
 
     @ViewBuilder

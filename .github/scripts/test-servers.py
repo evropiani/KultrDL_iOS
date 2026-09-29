@@ -9,6 +9,7 @@ without a passphrase, PEM (PKCS#1 / SEC1) and PKCS#8.
 """
 
 import asyncio
+import logging
 import os
 import subprocess
 import sys
@@ -139,6 +140,8 @@ async def sftp_server(authorized):
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s", stream=sys.stdout)
+    logging.getLogger("asyncssh").setLevel(logging.WARNING)
     os.makedirs(ROOT, exist_ok=True)
     work = tempfile.mkdtemp(prefix="kultrdl-servers-")
     authorized = make_keys()

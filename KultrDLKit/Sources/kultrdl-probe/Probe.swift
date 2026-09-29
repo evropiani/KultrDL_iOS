@@ -190,6 +190,18 @@ struct Probe {
             return "\(data.count / 1024) KB → \((square?.count ?? 0) / 1024) KB square"
         }
 
+        if sourceFile == nil {
+            // YouTube turns datacenter addresses away now and then; Bandcamp's MP3 still exercises the converters.
+            await check("Bandcamp download (for conversion)") {
+                let s = try await finder.find("https://c418.bandcamp.com/track/sweden", purpose: .download(prefer: .best))
+                let dir = work.appendingPathComponent("bandcamp", isDirectory: true)
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                let r = try await downloader.download(s, into: dir) { _ in }
+                sourceFile = r
+                let size = (try? FileManager.default.attributesOfItem(atPath: r.file.path)[.size] as? Int64) ?? 0
+                return "\(r.container), \(size / 1024) KB"
+            }
+        }
         guard let source = sourceFile else {
             print("  (no download to convert)")
             return
@@ -238,16 +250,26 @@ struct Probe {
                     pin = untrusted.fingerprint
                 }
                 c.pin = pin
-                return try await Remote.use(c) { session in
-                    let folder = "KultrDL probe/Artist ü/Album"
-                    try await session.makeDirectories(folder)
-                    try await session.upload(file, to: folder + "/Track 1.bin") { _ in }
-                    let entries = try await session.list(folder)
-                    guard let entry = entries.first(where: { $0.name == "Track 1.bin" }) else { throw KultrError("the upload isn't listed") }
-                    guard entry.size == 700_000 else { throw KultrError("size \(entry.size) instead of 700000") }
-                    try await session.delete(folder + "/Track 1.bin")
-                    let dirOK = try await session.isDirectory("KultrDL probe")
-                    return "home \(session.home), pin \(pin?.prefix(20) ?? "-")…, folder \(dirOK)"
+                var step = "sign in"
+                do {
+                    return try await Remote.use(c) { session in
+                        let folder = "KultrDL probe/Artist ü/Album"
+                        step = "make folders"
+                        try await session.makeDirectories(folder)
+                        step = "upload"
+                        try await session.upload(file, to: folder + "/Track 1.bin") { _ in }
+                        step = "list"
+                        let entries = try await session.list(folder)
+                        guard let entry = entries.first(where: { $0.name == "Track 1.bin" }) else { throw KultrError("the upload isn't listed") }
+                        guard entry.size == 700_000 else { throw KultrError("size \(entry.size) instead of 700000") }
+                        step = "delete"
+                        try await session.delete(folder + "/Track 1.bin")
+                        step = "folder check"
+                        let dirOK = try await session.isDirectory("KultrDL probe")
+                        return "home \(session.home), pin \(pin?.prefix(20) ?? "-")…, folder \(dirOK)"
+                    }
+                } catch {
+                    throw KultrError("\(step): \((error as? LocalizedError)?.errorDescription ?? String(describing: error))")
                 }
             }
         }
@@ -263,6 +285,7 @@ struct Probe {
                 continue
             }
             let passphrase = key.hasSuffix("-pass") ? "keypass" : ""
+            await check("read key \(key)") { try Remote.checkKey(text, passphrase: passphrase) }
             await roundTrip("SFTP key \(key)", Connection(serverProtocol: .sftp, host: "127.0.0.1", port: 2222, username: "kultr", privateKey: text, passphrase: passphrase))
         }
         await check("SFTP wrong password is refused") {
