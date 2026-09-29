@@ -52,15 +52,15 @@ struct DownloadsScreen: View {
 
                 if !active.isEmpty {
                     SectionHeader("In progress", icon: "arrow.down.circle")
-                    ForEach(active) { job in JobRow(job: job) }
+                    ForEach(active) { job in JobRow(job: job).id("active:\(job.trackId)") }
                 }
                 if !failed.isEmpty {
                     SectionHeader("Failed", icon: "exclamationmark.circle")
-                    ForEach(failed) { job in JobRow(job: job) }
+                    ForEach(failed) { job in JobRow(job: job).id("failed:\(job.trackId)") }
                 }
                 if !sent.isEmpty {
                     SectionHeader("Sent to servers", icon: "checkmark.icloud")
-                    ForEach(sent) { job in SentRow(job: job) }
+                    ForEach(sent) { job in SentRow(job: job).id("sent:\(job.trackId)") }
                 }
                 if !done.isEmpty {
                     let tracks = done.map { $0.track }
@@ -74,6 +74,7 @@ struct DownloadsScreen: View {
                     }
                     ForEach(Array(done.enumerated()), id: \.element.id) { index, stored in
                         DoneRow(stored: stored, canSend: !servers.isEmpty) { graph.actions.play(tracks, index) }
+                            .id("done:\(stored.id)")
                     }
                 }
                 if active.isEmpty && failed.isEmpty && done.isEmpty && sent.isEmpty {
@@ -130,11 +131,19 @@ private func serverName(_ job: DownloadJob) -> String? {
 
 private struct JobRow: View {
     @Environment(\.kultr) private var theme
-    let job: DownloadJob
+    let row: DownloadJob
+
+    init(job: DownloadJob) {
+        row = job
+    }
+
+    /** The job as it is now, not as it was when the row was made. */
+    private var job: DownloadJob { AppGraph.shared.downloads.job(row.trackId) ?? row }
 
     var body: some View {
         let graph = AppGraph.shared
         let downloads = graph.downloads
+        let job = self.job
         let c = theme.colors
         let track = graph.library.track(job.trackId)
         let live = downloads.live?.trackId == job.trackId ? downloads.live : nil

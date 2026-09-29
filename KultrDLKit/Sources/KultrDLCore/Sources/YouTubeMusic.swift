@@ -270,15 +270,25 @@ public final class YouTubeMusic: @unchecked Sendable {
         }.distinct { $0.id }
     }
 
-    /** The page's header: the first "…HeaderRenderer" object with a title. */
+    /** The headers of a whole page, as opposed to those of the shelves on it ("Other versions"). */
+    private static let pageHeaders = [
+        "musicResponsiveHeaderRenderer", "musicDetailHeaderRenderer", "musicImmersiveHeaderRenderer",
+        "musicVisualHeaderRenderer", "musicEditablePlaylistDetailHeaderRenderer",
+    ]
+
+    /** The page's header: a page header with a title, else the first "…HeaderRenderer" that isn't a shelf's. */
     static func header(_ root: JSON) -> JSON? {
+        var fallback: JSON?
         for node in root.walk() {
             guard case .obj(let o) = node else { continue }
             for (key, value) in o.entries where key.hasSuffix("HeaderRenderer") {
-                if case .obj(let h) = value, h["title"] != nil { return value }
+                guard case .obj(let h) = value, h["title"] != nil else { continue }
+                if pageHeaders.contains(key) { return value }
+                let shelf = key.contains("Shelf") || key.contains("Carousel") || key.contains("Section") || key.contains("Chip")
+                if fallback == nil && !shelf { fallback = value }
             }
         }
-        return nil
+        return fallback
     }
 
     static func continuationToken(_ root: JSON) -> String? {

@@ -36,11 +36,12 @@ jobs:
         run: |
           status=0
           swift build --package-path KultrDLKit --build-tests > build-kit.log 2>&1 || status=$?
-          grep -E "error:" build-kit.log | sed -E 's#^.*/KultrDLKit/##' | sort -u | head -150
+          grep -E "error:" build-kit.log | sed -E 's#^.*/KultrDLKit/##' | sort -u | head -150 || true
           tail -3 build-kit.log
           [ $status -eq 0 ] || exit $status
-          set -o pipefail
-          swift test --package-path KultrDLKit --skip-build 2>&1 | tee tests.log | grep -E "error:|failed|passed|Executed|XCTAssert" ; exit ${PIPESTATUS[0]}
+          swift test --package-path KultrDLKit --skip-build > tests.log 2>&1 || status=$?
+          grep -E "error:|failed|Executed|XCTAssert" tests.log | head -80 || true
+          exit $status
 
       # The real sites, from the runner: search, links, YouTube streams, conversion
       # and FTP/SFTP uploads to throwaway local servers. A report, never a gate:
