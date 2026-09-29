@@ -88,6 +88,8 @@ struct DownloadsScreen: View {
         }
         .navigationTitle("Downloads")
         .kultrScreen()
+        .onAppear { downloads.start() }
+        .onChange(of: settings.wifiOnly) { _, _ in downloads.start() }
         .sheet(isPresented: $pickingFormat) {
             FormatSheet { pickingFormat = false }
                 .environment(\.kultr, theme)

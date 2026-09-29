@@ -94,7 +94,8 @@ final class TranscoderTests: XCTestCase {
     func testWAV() async throws {
         let wav = try await convert(.wav, .bit24)
         let asset = AVURLAsset(url: wav)
-        XCTAssertEqual(try await asset.load(.duration).seconds, 2.0, accuracy: 0.05)
+        let duration = try await asset.load(.duration).seconds
+        XCTAssertEqual(duration, 2.0, accuracy: 0.05)
     }
 
     func testOggFormats() async throws {

@@ -530,3 +530,16 @@ final class RemotePathTests: XCTestCase {
         XCTAssertEqual(preset.label, "FLAC · 24-bit")
     }
 }
+
+final class EngineFileTests: XCTestCase {
+    /** engine/youtube.json is what installed apps download: it has to decode, and never go backwards. */
+    func testPublishedEngineDecodes() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let data = try Data(contentsOf: root.appendingPathComponent("engine/youtube.json"))
+        let config = try JSONDecoder().decode(EngineConfig.self, from: data)
+        XCTAssertGreaterThanOrEqual(config.version, EngineConfig.builtIn.version)
+        XCTAssertFalse(config.clients.isEmpty)
+        XCTAssertEqual(Set(config.clients.map { $0.key }).count, config.clients.count)
+    }
+}

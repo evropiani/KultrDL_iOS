@@ -1,0 +1,13 @@
+{
+  "subtitle": "Search, play and download music, in the Kultr design.",
+  "localizedDescription": "KultrDL finds music on YouTube Music, YouTube, SoundCloud and Bandcamp, and opens links from Spotify, Apple Music, Deezer, Tidal, Qobuz and Amazon Music, playing them from the matching recording with the catalogue's own tags and cover.\n\n• Play anything: a queue, the lock screen, Control Center and AirPlay.\n• Download as FLAC, MP3, AAC, Opus, ALAC, WAV or Ogg Vorbis, at the quality you choose, with title, artist, album, track numbers and cover art inside.\n• Send downloads straight to your NAS or computer over SFTP, FTPS or FTP, into Artist or Artist/Album folders, with SSH keys and pinned certificates.\n• Downloads show in the Files app, so any player can open them.\n• Favourites, saved tracks, your own playlists, albums and playlists from any service, listening history.\n• Liquid glass on iOS 26, colours from the artwork of what's playing.\n• Backups that move between KultrDL for iOS and Android.\n\nNo yt-dlp or ffmpeg needed: the stream finding, challenge solving and conversion are built in, and YouTube's clients update themselves.\n\nFree and open source: github.com/evropiani/KultrDL_iOS",
+  "iconURL": "https://raw.githubusercontent.com/evropiani/KultrDL_iOS/main/.github/kultrdl-logo.png",
+  "tintColor": "#7c6fd6",
+  "category": "entertainment",
+  "appPermissions": {
+    "entitlements": [],
+    "privacy": {
+      "NSLocalNetworkUsageDescription": "KultrDL sends downloads to your FTP or SFTP server, which may be on your home network."
+    }
+  }
+}

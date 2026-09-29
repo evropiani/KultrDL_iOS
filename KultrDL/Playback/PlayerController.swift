@@ -88,7 +88,7 @@ final class PlayerController {
             MainActor.assumeIsolated { self?.interrupted(info) }
         }
         center.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] note in
-            let reason = (note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt).flatMap(AVAudioSession.RouteChangeReason.init)
+            let reason = (note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt).flatMap { AVAudioSession.RouteChangeReason(rawValue: $0) }
             MainActor.assumeIsolated {
                 if reason == .oldDeviceUnavailable { self?.pause() }
             }
