@@ -55,10 +55,11 @@ struct CollectionScreen: View {
                 if let error {
                     EmptyState(icon: "icloud.slash", title: "Couldn't open this", message: error)
                 } else if let c = loaded {
+                    let mix = Self.mix(c)
                     PillRow {
                         Pill("Play", icon: "play.fill", accent: true, enabled: !c.tracks.isEmpty) { actions.play(c.tracks) }
                         Pill("Shuffle", icon: "shuffle", enabled: !c.tracks.isEmpty) { actions.shuffle(c.tracks) }
-                        if let mix = c.id.hasPrefix("mix:") ? graph.recommender.feed?.mixes.first(where: { "mix:" + $0.id == c.id }) : nil {
+                        if let mix {
                             Pill("Keep updated", icon: "arrow.triangle.2.circlepath") { actions.followMix(mix) }
                         }
                         Pill("Download all", icon: "arrow.down.circle", enabled: !c.tracks.isEmpty) { actions.download(c.tracks) }
@@ -115,6 +116,14 @@ struct CollectionScreen: View {
 }
 
 extension CollectionScreen {
+    /** The mix a "mix:" page shows, while it is in the feed. */
+    @MainActor
+    static func mix(_ c: TrackCollection) -> Mix? {
+        guard c.id.hasPrefix("mix:"), let mixes = AppGraph.shared.recommender.feed?.mixes else { return nil }
+        let id = String(c.id.dropFirst(4))
+        return mixes.first { $0.id == id }
+    }
+
     static func eyebrow(_ c: TrackCollection) -> String {
         if c.id.hasPrefix("mix:") { return "Made for you" }
         switch c.recordType {

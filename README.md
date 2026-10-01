@@ -39,8 +39,28 @@ the same sources, formats and servers, and backups that move between the two.
   the round search button growing into the field, the mini player as its
   accessory — and a floating glass bar that behaves the same on iOS 17 and 18.
   The whole interface takes its colour from the artwork of what is playing.
-- **Backup and restore** of the library, settings and servers (without
-  passwords) as one JSON file, in the same format as KultrDL for Android.
+- **Suggestions, made on the phone.** “For you” on Home shows new releases
+  from the artists you play, mixes made for you (Daily Mixes, Release Radar,
+  Discover, “Because you play…”), albums to try, albums missing from your
+  collection, and old favourites to rediscover. It learns from what you play,
+  skip, heart, save, download and put in playlists — and, if you like, from
+  the Music app's library (with play counts and ratings), your Navidrome
+  (plays, stars, ratings and what you own), Last.fm and ListenBrainz. New
+  music is found through Deezer's and Apple Music's catalogues and YouTube
+  Music's radio. Touch and hold a suggestion for “More like this”, “Not
+  interested” or “Never this artist”; a slider sets how familiar or new the
+  mixes are; genres can be left out. New releases can notify you as they
+  come out or in a weekly summary. Mixes can be saved as playlists that
+  update themselves every day.
+- **Navidrome.** Connect your server and its songs play in mixes straight
+  from it; “Download to Navidrome” puts downloads into its music folder (over
+  your saved SFTP/FTP server) and asks it to rescan.
+- **Block artists.** Their songs, and every song they're featured on, are
+  hidden everywhere (search, albums, playlists, library, suggestions) and
+  skipped if they come up in the queue.
+- **Backup and restore** of the library, settings, servers and Navidrome
+  (without passwords), blocked artists and your answers to suggestions as one
+  JSON file, in the same format as KultrDL for Android.
 
 ## No yt-dlp, no ffmpeg
 
@@ -92,7 +112,7 @@ Only download music you have the right to keep.
 Requirements: macOS with Xcode 26 or newer (the app runs on iOS 17 and later).
 
 ```sh
-swift test --package-path KultrDLKit        # core, media and tag tests, no simulator needed
+swift test --package-path KultrDLKit        # core, recommendation, media and tag tests, no simulator needed
 swift run --package-path KultrDLKit kultrdl-probe   # checks against the real sites
 open KultrDL.xcodeproj                      # choose your team under Signing & Capabilities, then Run
 ```
@@ -124,17 +144,18 @@ To fix YouTube for everyone without a release, edit
 
 On other branches the workflow builds for the simulator, takes screenshots
 (including a real download and conversion), and runs `kultrdl-probe`:
-searches, links, every YouTube client, downloads, every conversion, and
+searches, links, every YouTube client, downloads, every conversion, the
+recommendation sources and a whole “For you” page, a throwaway Navidrome, and
 uploads to throwaway FTP, FTPS and SFTP servers with every kind of SSH key.
 
 ## How it is put together
 
 | Part | What it holds |
 | --- | --- |
-| `KultrDLKit/Sources/KultrDLCore` | The catalogues, link recognition, the matcher, YouTube's player API with the JavaScript challenge solver, SoundCloud and Bandcamp streams, HLS, the stream downloader, and the formats written by hand (WebM, ID3, Vorbis comments, WAV). |
+| `KultrDLKit/Sources/KultrDLCore` | The recommendation engine (taste profile, ranking, mixes, artist blocking), the Navidrome (Subsonic), Last.fm and ListenBrainz clients, the catalogues, link recognition, the matcher, YouTube's player API with the JavaScript challenge solver, SoundCloud and Bandcamp streams, HLS, the stream downloader, and the formats written by hand (WebM, ID3, Vorbis comments, WAV). |
 | `KultrDLKit/Sources/KultrDLMedia` | Decoding and encoding: FLAC, MP3, AAC, ALAC, WAV, Opus and Vorbis, with tags and cover art. |
-| `KultrDLKit/Sources/KultrDLRemote` | FTP, FTPS and SFTP sessions, and the private key parser. |
-| `KultrDL` | The SwiftUI app: the library, the download queue, the player, and the Kultr interface. |
+| `KultrDLKit/Sources/KultrDLRemote` | FTP, FTPS and SFTP sessions, and the private key parser (with OpenBSD's bcrypt_pbkdf for passphrase-protected OpenSSH keys). |
+| `KultrDL` | The SwiftUI app: the library, the listening log, the download queue, the player, the recommender (daily in the background), and the Kultr interface. |
 
 Dependencies: [lame](https://github.com/sbooth/lame-binary-xcframework),
 [FLAC](https://github.com/sbooth/flac-binary-xcframework),

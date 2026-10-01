@@ -99,9 +99,7 @@ struct RecommendationSettings: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Navidrome")
-                            Text(navidrome.configured
-                                 ? "\(navidrome.username) at \(navidrome.url)" + (navidrome.lastSync.map { " · \($0)" } ?? "")
-                                 : "Your plays, stars, ratings and collection there.")
+                            Text(navidromeLine(navidrome))
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
@@ -217,6 +215,13 @@ struct RecommendationSettings: View {
             lastFmKey = s.lastFmApiKey
             listenBrainzUser = s.listenBrainzUser
         }
+    }
+
+    private func navidromeLine(_ c: NavidromeConfig) -> String {
+        guard c.configured else { return "Your plays, stars, ratings and collection there." }
+        var line = "\(c.username) at \(c.url)"
+        if let sync = c.lastSync { line += " · " + sync }
+        return line
     }
 
     private func setPhoneMusic(_ on: Bool) {
