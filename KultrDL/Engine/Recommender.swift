@@ -176,11 +176,16 @@ final class Recommender {
             }
             similar.append(NavidromeSimilar(client: client, ids: ids))
         }
-        let radio: (@Sendable (Track) async throws -> [Track])? = s.useYouTubeRadio ? { track in
-            let url = (track.source == .youtubeMusic || track.source == .youtube) ? track.streamUrl : matched[track.id]
-            guard let id = YouTubeMusic.videoId(url) else { return [] }
-            return Array(try await catalog.youTubeMusic.radio(id).prefix(25))
-        } : nil
+        var radio: (@Sendable (Track) async throws -> [Track])?
+        if s.useYouTubeRadio {
+            radio = { (track: Track) async throws -> [Track] in
+                let fromYouTube = track.source == .youtubeMusic || track.source == .youtube
+                let url: String? = fromYouTube ? track.streamUrl : matched[track.id]
+                guard let id = YouTubeMusic.videoId(url) else { return [] }
+                let songs = try await catalog.youTubeMusic.radio(id)
+                return Array(songs.prefix(25))
+            }
+        }
         let artistCache = ArtistCache(cache.artists)
         let discovery = Discovery(
             directory: CatalogDirectory(deezer: catalog.deezer, apple: catalog.apple, useDeezer: { shared.value.useDeezer }),
