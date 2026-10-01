@@ -2,6 +2,7 @@ import BackgroundTasks
 import Foundation
 import KultrDLCore
 import Observation
+import UIKit
 import UserNotifications
 
 /**
@@ -82,7 +83,6 @@ final class Recommender {
     func refreshIfStale() {
         let s = graph.settings.settings
         guard s.suggestions, !status.isWorking else { return }
-        if s.releaseAlerts != .off { askForNotifications() }
         guard nowMs() - (raw?.builtAt ?? 0) >= 20 * Self.hour else { return }
         refreshInBackground()
     }
@@ -218,6 +218,10 @@ final class Recommender {
         raw = kept
         Storage.save(kept, Self.feedFile)
         alerts(kept, s, now)
+        // Asked when there is something to be told about, while the app is open, rather than at first launch.
+        if !kept.releases.isEmpty, s.releaseAlerts != .off, UIApplication.shared.applicationState == .active, !Self.takingScreenshots {
+            askForNotifications()
+        }
         updateFollowedMixes(kept)
         saveCache()
         print("KultrDL: Recommendations ready: \(kept.releases.count) new releases, \(kept.mixes.count) mixes, \(kept.albums.count) albums, \(kept.missing.count) missing\(daily ? " (daily)" : "")")
@@ -424,6 +428,9 @@ final class Recommender {
             }
         }
     }
+
+    /** CI's simulator screenshots (Debug builds) leave the permission prompt out of the pictures. */
+    private static var takingScreenshots: Bool { ProcessInfo.processInfo.environment["KULTRDL_SCREEN"] != nil }
 
     private func askForNotifications() {
         Task {

@@ -454,7 +454,8 @@ public final class Discovery: @unchecked Sendable {
             for s in similar where keys.contains(s.seedKey) { fresh += similarTracks[s.ref.id] ?? [] }
             let tracks = compose(familiar, fresh, input, rules, day &* 31 &+ Int64(i))
             if tracks.count < 5 { return nil }
-            let names = group.sorted { $0.score > $1.score }.map(\.name)
+            // "Daft Punk" and "Daft Punk, Julian Casablancas" are one name here.
+            let names = group.sorted { $0.score > $1.score }.map { Keys.primary($0.name) }.distinct { Credits.key($0) }
             return Mix(
                 id: "daily-\(i + 1)",
                 title: "Daily Mix \(i + 1)",
