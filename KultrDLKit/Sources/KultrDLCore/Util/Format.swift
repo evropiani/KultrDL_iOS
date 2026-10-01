@@ -44,6 +44,32 @@ public enum Format {
         }
     }
 
+    private static let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    /** "Today", "Yesterday", "3 days ago", "2 weeks ago" or "12 Mar 2026" for a "2026-03-12" release date. */
+    public static func released(_ date: String?, today: Day = .today()) -> String? {
+        guard let day = Day(date) else { return nil }
+        let days = today.number - day.number
+        let short = "\(day.day) \(months[day.month - 1])"
+        switch days {
+        case ..<0: return "Out \(short)"
+        case 0: return "Today"
+        case 1: return "Yesterday"
+        case ..<14: return "\(days) days ago"
+        case ..<60: return "\(days / 7) weeks ago"
+        default: return "\(short) \(day.year)"
+        }
+    }
+
+    /** "just now", "5 min ago", "3 h ago", "2 days ago"; [at] and [now] in milliseconds. */
+    public static func ago(_ at: Int64, now: Int64 = Int64(Date().timeIntervalSince1970 * 1000)) -> String {
+        let minutes = (now - at) / 60_000
+        if minutes < 1 { return "just now" }
+        if minutes < 60 { return "\(minutes) min ago" }
+        if minutes < 48 * 60 { return "\(minutes / 60) h ago" }
+        return "\(minutes / (24 * 60)) days ago"
+    }
+
     public static func initials(_ text: String) -> String {
         let words = text.split(whereSeparator: { $0.isWhitespace }).prefix(2)
         let letters = words.compactMap { $0.first.map { String($0).uppercased() } }.joined()

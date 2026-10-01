@@ -31,6 +31,19 @@ public final class AppleMusic: @unchecked Sendable {
         Self.parseResults(try await get("lookup?id=\(trackId)")).tracks.first
     }
 
+    public func searchArtists(_ name: String) async throws -> [ArtistRef] {
+        try await get("search?term=\(name.urlQueryEncoded)&media=music&entity=musicArtist&limit=8")["results"].array.compactMap { r in
+            guard let id = r["artistId"].int64, let name = r["artistName"].string else { return nil }
+            return ArtistRef(id: "apple:\(id)", name: name)
+        }
+    }
+
+    /** An artist's albums, EPs and singles, newest first. */
+    public func artistAlbums(_ artistId: String) async throws -> [TrackCollection] {
+        Self.parseResults(try await get("lookup?id=\(artistId)&entity=album&sort=recent&limit=60")).albums
+            .sorted { ($0.releaseDate ?? "") > ($1.releaseDate ?? "") }
+    }
+
     /** The most played songs in the user's country right now. */
     public func topSongs(limit: Int = 25) async throws -> [Track] {
         let cc = country().lowercased().nonEmpty ?? "us"
@@ -87,18 +100,32 @@ public final class AppleMusic: @unchecked Sendable {
         )
     }
 
-    private static func parseAlbum(_ r: JSON) -> TrackCollection? {
-        guard let id = r["collectionId"].int64, let title = r["collectionName"].string else { return nil }
+    static func parseAlbum(_ r: JSON) -> TrackCollection? {
+        guard let id = r["collectionId"].int64, let name = r["collectionName"].string else { return nil }
+        // Apple names singles and EPs "Title - Single" and "Title - EP".
+        let type: String
+        if name.hasSuffix(" - Single") {
+            type = "single"
+        } else if name.hasSuffix(" - EP") {
+            type = "ep"
+        } else if r["collectionType"].string == "Compilation" {
+            type = "compile"
+        } else {
+            type = "album"
+        }
         return TrackCollection(
             id: "apple:album:\(id)",
             source: .appleMusic,
             kind: .album,
-            title: title,
+            title: name.removingSuffix(" - Single").removingSuffix(" - EP"),
             subtitle: r["artistName"].string,
             artworkUrl: bigArtwork(r["artworkUrl100"].string),
             pageUrl: r["collectionViewUrl"].string?.before("?uo="),
             year: TextTools.year(r["releaseDate"].string),
-            trackCount: r["trackCount"].int
+            trackCount: r["trackCount"].int,
+            releaseDate: r["releaseDate"].string.map { String($0.prefix(10)) },
+            recordType: type,
+            genre: r["primaryGenreName"].string
         )
     }
 

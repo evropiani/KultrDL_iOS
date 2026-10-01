@@ -3,9 +3,56 @@ import Foundation
 /** Deezer's public catalogue API (no account needed). */
 public final class Deezer: @unchecked Sendable {
     private let http: Http
+    private let pace = Pace()
+    private let lock = NSLock()
+    private var genreNames: [Int64: String]?
 
     public init(http: Http) {
         self.http = http
+    }
+
+    public func searchArtists(_ name: String) async throws -> [ArtistRef] {
+        try await get("search/artist?q=\(name.urlQueryEncoded)&limit=8")["data"].array.compactMap(Self.parseArtist)
+    }
+
+    /** An artist's albums, EPs and singles, newest first. */
+    public func artistAlbums(_ artistId: String, artistName: String) async throws -> [TrackCollection] {
+        let names = await genres()
+        return try await get("artist/\(artistId)/albums?limit=100")["data"].array
+            .compactMap { Self.parseArtistAlbum($0, artistName: artistName, genres: names) }
+            .sorted { ($0.releaseDate ?? "") > ($1.releaseDate ?? "") }
+    }
+
+    /** The same albums, most loved (by Deezer fans) first; albums only. */
+    public func popularAlbums(_ artistId: String, artistName: String) async throws -> [TrackCollection] {
+        let names = await genres()
+        return try await get("artist/\(artistId)/albums?limit=100")["data"].array
+            .compactMap { r in Self.parseArtistAlbum(r, artistName: artistName, genres: names).map { ($0, r["fans"].int64 ?? 0) } }
+            .filter { $0.0.recordType == "album" }
+            .enumerated()
+            .sorted { a, b in a.element.1 > b.element.1 || (a.element.1 == b.element.1 && a.offset < b.offset) }
+            .map(\.element.0)
+    }
+
+    public func related(_ artistId: String) async throws -> [ArtistRef] {
+        try await get("artist/\(artistId)/related?limit=25")["data"].array.compactMap(Self.parseArtist)
+    }
+
+    public func top(_ artistId: String, limit: Int) async throws -> [Track] {
+        try await get("artist/\(artistId)/top?limit=\(limit)")["data"].array.compactMap { Self.parseTrack($0, album: nil) }
+    }
+
+    /** Deezer genre ids to names ("Rap/Hip Hop"), fetched once. */
+    private func genres() async -> [Int64: String] {
+        if let known = lock.withLock({ genreNames }) { return known }
+        var names: [Int64: String] = [:]
+        if let list = try? await get("genre")["data"].array {
+            for g in list {
+                if let id = g["id"].int64, let name = g["name"].string { names[id] = name }
+            }
+        }
+        if !names.isEmpty { lock.withLock { genreNames = names } }
+        return names
     }
 
     public func searchTracks(_ query: String) async throws -> [Track] {
@@ -27,12 +74,54 @@ public final class Deezer: @unchecked Sendable {
     }
 
     private func get(_ path: String) async throws -> JSON {
-        let json = try await http.getJSON("https://api.deezer.com/\(path)")
+        await pace.wait()
+        var json = try await http.getJSON("https://api.deezer.com/\(path)")
+        // Error 4 is Deezer's "too many requests": wait and ask once more.
+        if json["error"]?["code"].int64 == 4 {
+            try await Task.sleep(nanoseconds: 5_000_000_000)
+            json = try await http.getJSON("https://api.deezer.com/\(path)")
+        }
         if let message = json["error"]?["message"].string { throw KultrError("Deezer: \(message)") }
         return json
     }
 
+    /** Deezer allows 50 requests in 5 seconds; stay well under that. */
+    private actor Pace {
+        private static let window: TimeInterval = 5
+        private static let most = 35
+        private var recent: [Date] = []
+
+        func wait() async {
+            while true {
+                let now = Date()
+                recent.removeAll { now.timeIntervalSince($0) > Self.window }
+                if recent.count < Self.most {
+                    recent.append(now)
+                    return
+                }
+                let pause = Self.window - now.timeIntervalSince(recent[0]) + 0.01
+                try? await Task.sleep(nanoseconds: UInt64(max(0.01, pause) * 1_000_000_000))
+            }
+        }
+    }
+
     // ------------------------------------------------------------ parsing --
+
+    public static func parseArtist(_ r: JSON) -> ArtistRef? {
+        guard let id = r["id"].int64, let name = r["name"].string else { return nil }
+        if let type = r["type"].string, type != "artist" { return nil }
+        return ArtistRef(id: "deezer:\(id)", name: name, fans: r["nb_fan"].int64 ?? 0, pictureUrl: r["picture_xl"].string ?? r["picture_big"].string)
+    }
+
+    /** An album in an artist's discography (it doesn't name the artist; [artistName] does). */
+    public static func parseArtistAlbum(_ r: JSON, artistName: String, genres: [Int64: String]) -> TrackCollection? {
+        guard var album = parseAlbum(r) else { return nil }
+        album.subtitle = r["artist"]?["name"].string ?? artistName
+        album.releaseDate = r["release_date"].string
+        album.recordType = r["record_type"].string
+        album.genre = r["genre_id"].int64.flatMap { genres[$0] }
+        return album
+    }
 
     public static func parseTrack(_ r: JSON, album: TrackCollection?) -> Track? {
         guard let id = r["id"].int64, let title = r["title"].string else { return nil }

@@ -10,7 +10,7 @@ public enum TextTools {
     private static let bracketVersion = Rx(#"(?i)[(\[][^)\]]*(remaster(ed)?|mono|stereo|single version|album version|explicit|clean)[^)\]]*[)\]]"#)
     private static let videoNoise = Rx(#"(?i)[(\[][^)\]]*(official|video|audio|lyrics?|visuali[sz]er|hd|4k|mv|m/v|clip)[^)\]]*[)\]]"#)
     private static let spaces = Rx(#"\s{2,}"#)
-    private static let artistSeparators = Rx(#"(?i)\s*(,|&|\bx\b|\band\b|\bfeat\.?|\bft\.?|\bfeaturing\b|/|;)\s*"#)
+    private static let artistSeparators = Rx(#"(?i)\s*(,|&|\bx\b|\band\b|\bfeat\.?|\bft\.?|\bfeaturing\b|(?<=\s)/|/(?=\s)|;)\s*"#)
     private static let dash = Rx(#"\s[-–—]\s"#)
     private static let isoDuration = Rx(#"^P(?:T)?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?$"#)
     private static let yearStart = Rx(#"^(\d{4})"#)
@@ -78,7 +78,10 @@ public enum TextTools {
         return 2.0 * Double(hits) / Double(total)
     }
 
-    /** Artist credits split on the usual separators: "A, B & C feat. D". */
+    /**
+     * Artist credits split on the usual separators: "A, B & C feat. D", "A / B".
+     * A slash needs a space next to it, so "AC/DC" stays one artist.
+     */
     public static func splitArtists(_ artist: String) -> [String] {
         artistSeparators.split(artist).map { $0.trimmed() }.filter { !$0.isEmpty }
     }

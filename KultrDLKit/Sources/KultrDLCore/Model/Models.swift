@@ -20,6 +20,12 @@ public enum Source: String, Codable, CaseIterable, Sendable, Hashable {
     case qobuz = "QOBUZ"
     case amazonMusic = "AMAZON_MUSIC"
     case web = "WEB"
+    /** Songs on the user's Navidrome (Subsonic) server, streamed from it. */
+    case navidrome = "NAVIDROME"
+    /** Music files already on the phone (the Music app's library). */
+    case phone = "PHONE"
+    /** Tracks from ListenBrainz's weekly playlists: names only, matched like a catalogue. */
+    case listenbrainz = "LISTENBRAINZ"
 
     public var label: String {
         switch self {
@@ -34,12 +40,15 @@ public enum Source: String, Codable, CaseIterable, Sendable, Hashable {
         case .qobuz: return "Qobuz"
         case .amazonMusic: return "Amazon Music"
         case .web: return "Web"
+        case .navidrome: return "Navidrome"
+        case .phone: return "This phone"
+        case .listenbrainz: return "ListenBrainz"
         }
     }
 
     public var streams: Bool {
         switch self {
-        case .youtubeMusic, .youtube, .soundcloud, .bandcamp, .web: return true
+        case .youtubeMusic, .youtube, .soundcloud, .bandcamp, .web, .navidrome, .phone: return true
         default: return false
         }
     }
@@ -172,6 +181,11 @@ public struct TrackCollection: Codable, Hashable, Identifiable, Sendable {
     public var pageUrl: String?
     public var year: Int?
     public var trackCount: Int?
+    /** "2026-09-26", when the source gives the full date. */
+    public var releaseDate: String?
+    /** "album", "single", "ep" or "compile", when the source says. */
+    public var recordType: String?
+    public var genre: String?
     /** Empty until loaded (search results list albums without their tracks). */
     public var tracks: [Track]
 
@@ -185,6 +199,9 @@ public struct TrackCollection: Codable, Hashable, Identifiable, Sendable {
         pageUrl: String? = nil,
         year: Int? = nil,
         trackCount: Int? = nil,
+        releaseDate: String? = nil,
+        recordType: String? = nil,
+        genre: String? = nil,
         tracks: [Track] = []
     ) {
         self.id = id
@@ -196,6 +213,9 @@ public struct TrackCollection: Codable, Hashable, Identifiable, Sendable {
         self.pageUrl = pageUrl
         self.year = year
         self.trackCount = trackCount
+        self.releaseDate = releaseDate
+        self.recordType = recordType
+        self.genre = genre
         self.tracks = tracks
     }
 }

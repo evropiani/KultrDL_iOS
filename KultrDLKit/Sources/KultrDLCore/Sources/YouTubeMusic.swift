@@ -74,29 +74,20 @@ public final class YouTubeMusic: @unchecked Sendable {
     /** Title, artist, album and cover of a song by its video id (YouTube Music's "next" page). */
     public func song(_ videoId: String) async throws -> Track? {
         let root = try await post("next", ["videoId": .str(videoId), "isAudioOnly": true])
-        guard let row = root.objectsUnder("playlistPanelVideoRenderer").first(where: { $0["videoId"].string == videoId })
-            ?? root.objectsUnder("playlistPanelVideoRenderer").first
-        else { return nil }
-        let title = Self.text(Self.runs(row["title"]))
-        guard !title.isEmpty else { return nil }
-        let byline = Self.runs(row["longBylineText"])
-        let artists = byline.filter { run in Self.pageType(run).map { $0.contains("ARTIST") || $0.contains("USER_CHANNEL") } ?? false }
-        let segments = Self.segments(byline).map { Self.text($0) }
-        let artist = artists.isEmpty ? segments.first : artists.compactMap { $0["text"].string }.joined(separator: ", ")
-        let album = byline.first { Self.pageType($0)?.contains("ALBUM") == true }?["text"].string
-        let year = segments.compactMap { s -> Int? in s.count == 4 && s.allSatisfy(\.isASCIIDigitChar) ? Int(s) : nil }.first
-        return Track(
-            id: "yt:\(videoId)",
-            source: .youtubeMusic,
-            title: title,
-            artist: (artist ?? "Unknown artist").removingSuffix(" - Topic"),
-            album: album,
-            durationMs: TextTools.parseClock(Self.text(Self.runs(row["lengthText"])).nonEmpty ?? row["lengthText"]?["simpleText"].string),
-            artworkUrl: Self.bigThumbnail(Self.thumbnail(row)),
-            pageUrl: Self.watchUrl(videoId),
-            streamUrl: Self.watchUrl(videoId),
-            year: year
-        )
+        let rows = root.objectsUnder("playlistPanelVideoRenderer")
+        guard let row = rows.first(where: { $0["videoId"].string == videoId }) ?? rows.first else { return nil }
+        return Self.parsePanelVideo(row)
+    }
+
+    /** The radio YouTube Music plays after [videoId]: songs like it, from it and from similar artists. */
+    public func radio(_ videoId: String) async throws -> [Track] {
+        let root = try await post("next", [
+            "videoId": .str(videoId),
+            "playlistId": .str("RDAMVM\(videoId)"),
+            "isAudioOnly": true,
+            "enablePersistentPlaylistPanel": true,
+        ])
+        return Self.parseRadio(root).filter { $0.id != "yt:\(videoId)" }
     }
 
     private func search(_ query: String, _ filter: Filter) async throws -> JSON {
@@ -181,6 +172,42 @@ public final class YouTubeMusic: @unchecked Sendable {
     static func text(_ runs: [JSON]) -> String {
         runs.map { $0["text"]?.rawString ?? $0["text"].string ?? "" }.joined().trimmed()
     }
+
+    /** A song in the queue of a "next" answer. */
+    static func parsePanelVideo(_ r: JSON) -> Track? {
+        guard let videoId = r["videoId"].string ?? r["navigationEndpoint"]?["watchEndpoint"]?["videoId"].string else { return nil }
+        let title = text(runs(r["title"]))
+        guard !title.isEmpty else { return nil }
+        let long = runs(r["longBylineText"])
+        let byline = long.isEmpty ? runs(r["shortBylineText"]) : long
+        let artists = byline.filter { run in pageType(run).map { $0.contains("ARTIST") || $0.contains("USER_CHANNEL") } ?? false }
+        let parts = segments(byline).map { text($0) }
+        let artist = artists.isEmpty ? parts.first : artists.compactMap { $0["text"].string }.joined(separator: ", ")
+        let album = byline.first { pageType($0)?.contains("ALBUM") == true }?["text"].string
+        let year = parts.compactMap { p -> Int? in p.count == 4 && p.allSatisfy(\.isASCIIDigitChar) ? Int(p) : nil }.first
+        return Track(
+            id: "yt:\(videoId)",
+            source: .youtubeMusic,
+            title: title,
+            artist: (artist ?? "Unknown artist").removingSuffix(" - Topic"),
+            album: album,
+            durationMs: TextTools.parseClock(text(runs(r["lengthText"])).nonEmpty ?? r["lengthText"]?["simpleText"].string),
+            artworkUrl: bigThumbnail(thumbnail(r)),
+            pageUrl: watchUrl(videoId),
+            streamUrl: watchUrl(videoId),
+            year: year
+        )
+    }
+
+    /** The queue of a "next" (radio) answer. */
+    public static func parseRadio(_ root: JSON) -> [Track] {
+        root.objectsUnder("playlistPanelVideoRenderer").compactMap(parsePanelVideo).distinct { $0.id }
+    }
+
+    private static let watchId = Rx(#"[?&]v=([A-Za-z0-9_-]{11})"#)
+
+    /** The video id in a YouTube or YouTube Music watch link. */
+    public static func videoId(_ url: String?) -> String? { url.flatMap { watchId.group($0) } }
 
     public static func parseTracks(_ root: JSON, source: Source) -> [Track] {
         root.objectsUnder("musicResponsiveListItemRenderer")

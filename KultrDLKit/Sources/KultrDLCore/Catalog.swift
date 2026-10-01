@@ -126,6 +126,7 @@ public final class Catalog: @unchecked Sendable {
         case .tidal, .amazonMusic: return try await odesliLink(target)
         case .qobuz: return try await pageLink(target)
         case .youtubeMusic, .youtube, .soundcloud, .bandcamp, .web: return try await extract(target.url)
+        case .navidrome, .phone, .listenbrainz: return try await extract(target.url)
         }
     }
 
