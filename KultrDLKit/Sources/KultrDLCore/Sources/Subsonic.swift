@@ -31,7 +31,10 @@ public final class Subsonic: @unchecked Sendable {
         public var openSubsonic: Bool
 
         public var description: String {
-            [type.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? "Subsonic server", version].compactMap { $0 }.joined(separator: " ")
+            var name = "Subsonic server"
+            if let type, let first = type.first { name = String(first).uppercased() + String(type.dropFirst()) }
+            guard let version else { return name }
+            return name + " " + version
         }
     }
 

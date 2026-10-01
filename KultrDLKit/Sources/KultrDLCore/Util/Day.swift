@@ -32,27 +32,33 @@ public struct Day: Comparable, Hashable, Sendable, CustomStringConvertible {
     /** Days since 1970-01-01. */
     public init(number: Int) {
         // Howard Hinnant's civil_from_days.
-        let z = number + 719_468
-        let era = (z >= 0 ? z : z - 146_096) / 146_097
-        let doe = z - era * 146_097
-        let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365
-        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
-        let mp = (5 * doy + 2) / 153
-        let d = doy - (153 * mp + 2) / 5 + 1
-        let m = mp < 10 ? mp + 3 : mp - 9
-        self.init(year: yoe + era * 400 + (m <= 2 ? 1 : 0), month: m, day: d)
+        let z: Int = number + 719_468
+        let era: Int = (z >= 0 ? z : z - 146_096) / 146_097
+        let doe: Int = z - era * 146_097
+        let a: Int = doe / 1460
+        let b: Int = doe / 36524
+        let c: Int = doe / 146_096
+        let yoe: Int = (doe - a + b - c) / 365
+        let leaps: Int = yoe / 4 - yoe / 100
+        let doy: Int = doe - (365 * yoe + leaps)
+        let mp: Int = (5 * doy + 2) / 153
+        let d: Int = doy - (153 * mp + 2) / 5 + 1
+        let m: Int = mp < 10 ? mp + 3 : mp - 9
+        let y: Int = yoe + era * 400
+        self.init(year: m <= 2 ? y + 1 : y, month: m, day: d)
     }
 
     public static func today() -> Day { Day(Date()) }
 
     /** Days since 1970-01-01 (Java's toEpochDay). */
     public var number: Int {
-        let y = month <= 2 ? year - 1 : year
-        let era = (y >= 0 ? y : y - 399) / 400
-        let yoe = y - era * 400
-        let mp = (month + 9) % 12
-        let doy = (153 * mp + 2) / 5 + day - 1
-        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy
+        let y: Int = month <= 2 ? year - 1 : year
+        let era: Int = (y >= 0 ? y : y - 399) / 400
+        let yoe: Int = y - era * 400
+        let mp: Int = (month + 9) % 12
+        let doy: Int = (153 * mp + 2) / 5 + day - 1
+        let leaps: Int = yoe / 4 - yoe / 100
+        let doe: Int = yoe * 365 + leaps + doy
         return era * 146_097 + doe - 719_468
     }
 

@@ -119,14 +119,36 @@ public enum Taste {
             if let genre, w > 0 { allGenres[genre, default: 0] += w }
         }
 
-        let artists = order.enumerated().map { index, key -> (Int, ArtistScore) in
-            let name = names[key]?.max { a, b in a.value < b.value || (a.value == b.value && a.key > b.key) }?.key ?? key
-            let topGenres = (genres[key] ?? [:]).sorted { a, b in a.value > b.value || (a.value == b.value && a.key < b.key) }.map(\.key)
-            return (index, ArtistScore(key: key, name: name, score: scores[key] ?? 0, genres: Array(topGenres.prefix(3)), solo: solo.contains(key)))
+        var artists: [ArtistScore] = []
+        for key in order {
+            let name = heaviest(names[key] ?? [:]) ?? key
+            let topGenres = ranked(genres[key] ?? [:])
+            artists.append(ArtistScore(key: key, name: name, score: scores[key] ?? 0, genres: Array(topGenres.prefix(3)), solo: solo.contains(key)))
         }
-        // Highest score first; equal scores keep the order they were first seen in.
-        let sorted = artists.sorted { a, b in a.1.score > b.1.score || (a.1.score == b.1.score && a.0 < b.0) }.map(\.1)
-        return TasteProfile(artists: sorted, genres: allGenres)
+        // Highest score first; equal scores keep the order they were first seen in (the sort is stable).
+        let sorted = artists.enumerated().sorted { a, b in
+            if a.element.score != b.element.score { return a.element.score > b.element.score }
+            return a.offset < b.offset
+        }
+        return TasteProfile(artists: sorted.map(\.element), genres: allGenres)
+    }
+
+    /** The key with the largest value; ties go to the alphabetically first. */
+    private static func heaviest(_ weights: [String: Double]) -> String? {
+        var best: (key: String, value: Double)?
+        for (key, value) in weights {
+            if let b = best, b.value > value || (b.value == value && b.key < key) { continue }
+            best = (key, value)
+        }
+        return best?.key
+    }
+
+    /** Keys from the largest value down; ties alphabetically. */
+    private static func ranked(_ weights: [String: Double]) -> [String] {
+        weights.sorted { a, b in
+            if a.value != b.value { return a.value > b.value }
+            return a.key < b.key
+        }.map(\.key)
     }
 
     private static let slash = Rx(#"\s*/\s*"#)

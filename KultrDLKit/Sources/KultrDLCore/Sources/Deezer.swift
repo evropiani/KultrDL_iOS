@@ -26,12 +26,14 @@ public final class Deezer: @unchecked Sendable {
     /** The same albums, most loved (by Deezer fans) first; albums only. */
     public func popularAlbums(_ artistId: String, artistName: String) async throws -> [TrackCollection] {
         let names = await genres()
-        return try await get("artist/\(artistId)/albums?limit=100")["data"].array
-            .compactMap { r in Self.parseArtistAlbum(r, artistName: artistName, genres: names).map { ($0, r["fans"].int64 ?? 0) } }
-            .filter { $0.0.recordType == "album" }
-            .enumerated()
-            .sorted { a, b in a.element.1 > b.element.1 || (a.element.1 == b.element.1 && a.offset < b.offset) }
-            .map(\.element.0)
+        let rows = try await get("artist/\(artistId)/albums?limit=100")["data"].array
+        var albums: [(album: TrackCollection, fans: Int64, order: Int)] = []
+        for r in rows {
+            guard let album = Self.parseArtistAlbum(r, artistName: artistName, genres: names), album.recordType == "album" else { continue }
+            albums.append((album, r["fans"].int64 ?? 0, albums.count))
+        }
+        albums.sort { a, b in a.fans != b.fans ? a.fans > b.fans : a.order < b.order }
+        return albums.map(\.album)
     }
 
     public func related(_ artistId: String) async throws -> [ArtistRef] {

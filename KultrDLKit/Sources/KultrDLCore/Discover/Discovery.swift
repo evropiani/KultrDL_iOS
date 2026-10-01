@@ -306,26 +306,27 @@ public final class Discovery: @unchecked Sendable {
     private func pickMissing(_ releases: [(String, [TrackCollection])], _ seeds: [String: ArtistScore], _ input: Input, _ rules: Rules) -> [Pick] {
         if input.owned.isEmpty { return [] }
         let recent = input.today.adding(days: -input.releaseWindowDays)
-        let owners = releases
-            .compactMap { key, list in seeds[key].map { ($0, list) } }
-            .filter { seed, _ in input.owned.hasArtist(seed.name) }
-            .enumerated()
-            .sorted { a, b in a.element.0.score > b.element.0.score || (a.element.0.score == b.element.0.score && a.offset < b.offset) }
-            .map(\.element)
+        var owners: [(seed: ArtistScore, list: [TrackCollection], order: Int)] = []
+        for (key, list) in releases {
+            guard let seed = seeds[key], input.owned.hasArtist(seed.name) else { continue }
+            owners.append((seed, list, owners.count))
+        }
+        owners.sort { a, b in a.seed.score != b.seed.score ? a.seed.score > b.seed.score : a.order < b.order }
         var out: [Pick] = []
-        for (seed, list) in owners {
-            let albums = list
-                .filter { $0.recordType == nil || $0.recordType == "album" }
-                .filter { c in Day(c.releaseDate).map { $0 < recent } ?? true }
-                .map { c -> TrackCollection in
-                    var c = c
-                    c.subtitle = c.subtitle ?? seed.name
-                    return c
-                }
-                .filter { !input.owned.hasAlbum($0.subtitle, $0.title) && rules.allows($0) }
-                .distinct { Keys.album($0.subtitle, $0.title) }
-                .prefix(2)
-            out += albums.map { Pick($0, artist: seed.name, reason: "You have other music by \(seed.name)", key: Keys.album($0.subtitle, $0.title)) }
+        for (seed, list, _) in owners {
+            var seen = Set<String>()
+            var taken = 0
+            for original in list where taken < 2 {
+                if let type = original.recordType, type != "album" { continue }
+                if let date = Day(original.releaseDate), date >= recent { continue }
+                var c = original
+                c.subtitle = c.subtitle ?? seed.name
+                if input.owned.hasAlbum(c.subtitle, c.title) || !rules.allows(c) { continue }
+                let key = Keys.album(c.subtitle, c.title)
+                if !seen.insert(key).inserted { continue }
+                out.append(Pick(c, artist: seed.name, reason: "You have other music by \(seed.name)", key: key))
+                taken += 1
+            }
         }
         return Array(out.prefix(24))
     }
@@ -396,7 +397,7 @@ public final class Discovery: @unchecked Sendable {
         }
 
         // Names without a catalogue entry yet: look up the strongest ones.
-        let ranked = tally.values.sorted { a, b in a.score > b.score || (a.score == b.score && a.order < b.order) }.prefix(24)
+        let ranked = tally.values.sorted { a, b in a.score != b.score ? a.score > b.score : a.order < b.order }.prefix(24)
         let lookups = await parallelMap(ranked.filter { $0.ref == nil }.map(\.name)) { name in (name, await self.resolve(run, name)) }
         for (name, ref) in lookups { tally[Credits.key(name)]?.ref = ref }
         return ranked
@@ -448,8 +449,9 @@ public final class Discovery: @unchecked Sendable {
         return groups.enumerated().compactMap { i, group -> Mix? in
             let keys = Set(group.map(\.key))
             let familiar = input.familiar.filter { !Credits.keys($0.track.artist, $0.track.title).isDisjoint(with: keys) }.map(\.track)
-            let fresh = group.flatMap { seedTracks[$0.key] ?? [] } +
-                similar.filter { keys.contains($0.seedKey) }.flatMap { similarTracks[$0.ref.id] ?? [] }
+            var fresh: [Track] = []
+            for s in group { fresh += seedTracks[s.key] ?? [] }
+            for s in similar where keys.contains(s.seedKey) { fresh += similarTracks[s.ref.id] ?? [] }
             let tracks = compose(familiar, fresh, input, rules, day &* 31 &+ Int64(i))
             if tracks.count < 5 { return nil }
             let names = group.sorted { $0.score > $1.score }.map(\.name)
@@ -477,12 +479,14 @@ public final class Discovery: @unchecked Sendable {
             if byGenre[g] == nil { genreOrder.append(g) }
             byGenre[g, default: []].append(s)
         }
-        let ranked = genreOrder.enumerated()
-            .map { (offset: $0.offset, list: byGenre[$0.element]!) }
-            .sorted { a, b in
-                let sa = a.list.reduce(0) { $0 + $1.score }, sb = b.list.reduce(0) { $0 + $1.score }
-                return sa > sb || (sa == sb && a.offset < b.offset)
-            }
+        var ranked: [(list: [ArtistScore], total: Double, order: Int)] = []
+        for g in genreOrder {
+            let list = byGenre[g] ?? []
+            var total = 0.0
+            for s in list { total += s.score }
+            ranked.append((list, total, ranked.count))
+        }
+        ranked.sort { a, b in a.total != b.total ? a.total > b.total : a.order < b.order }
         var groups: [[ArtistScore]]
         if ranked.count >= 2 {
             groups = ranked.prefix(3).map(\.list)
@@ -497,7 +501,9 @@ public final class Discovery: @unchecked Sendable {
     }
 
     private func discoverMix(_ similar: [Similar], _ tracks: [String: [Track]], _ input: Input, _ rules: Rules, _ day: Int64) -> Mix? {
-        let fresh = similar.flatMap { (tracks[$0.ref.id] ?? []).prefix(3) }
+        var candidates: [Track] = []
+        for s in similar { candidates += (tracks[s.ref.id] ?? []).prefix(3) }
+        let fresh = candidates
             .filter { rules.allows($0) && !input.owned.hasSong($0.artist, $0.title) }
             .distinct { Keys.track($0.artist, $0.title) }
         if fresh.count < 5 { return nil }
@@ -526,9 +532,9 @@ public final class Discovery: @unchecked Sendable {
                 radioTracks = await self.fetch(run, "radio of \(own.title)") { try await radio(own) } ?? []
             }
             // Mostly artists like them, with a few of their own songs.
-            let fresh = Array((seedTracks[seed.key] ?? []).prefix(2)) +
-                similar.filter { $0.seedKey == seed.key }.flatMap { (similarTracks[$0.ref.id] ?? []).prefix(3) } +
-                radioTracks
+            var fresh: [Track] = Array((seedTracks[seed.key] ?? []).prefix(2))
+            for s in similar where s.seedKey == seed.key { fresh += (similarTracks[s.ref.id] ?? []).prefix(3) }
+            fresh += radioTracks
             var adventurous = input
             adventurous.discover = max(input.discover, 0.6)
             let tracks = self.compose(Array(mine.prefix(3)), fresh, adventurous, rules, day &* 13 &+ Int64(i))
@@ -544,18 +550,15 @@ public final class Discovery: @unchecked Sendable {
     }
 
     private func rediscover(_ input: Input, _ rules: Rules) -> [Track] {
-        let cutoff = input.now - 45 * 86_400_000
-        let old = input.familiar
-            .enumerated()
-            .filter { p in
-                let at = p.element.lastPlayedAt ?? 0
-                return p.element.plays >= 3 && at >= 1 && at < cutoff
-            }
-            .sorted { a, b in a.element.plays > b.element.plays || (a.element.plays == b.element.plays && a.offset < b.offset) }
-            .map(\.element.track)
-            .filter { rules.allows($0) }
-            .distinct { Keys.track($0.artist, $0.title) }
-        return Array(Self.limitPerArtist(old, 3).prefix(30))
+        let cutoff: Int64 = input.now - 45 * 86_400_000
+        var old: [(played: Played, order: Int)] = []
+        for p in input.familiar {
+            let at: Int64 = p.lastPlayedAt ?? 0
+            if p.plays >= 3 && at >= 1 && at < cutoff { old.append((p, old.count)) }
+        }
+        old.sort { a, b in a.played.plays != b.played.plays ? a.played.plays > b.played.plays : a.order < b.order }
+        let tracks = old.map(\.played.track).filter { rules.allows($0) }.distinct { Keys.track($0.artist, $0.title) }
+        return Array(Self.limitPerArtist(tracks, 3).prefix(30))
     }
 
     /**
@@ -571,7 +574,9 @@ public final class Discovery: @unchecked Sendable {
             .distinct { Keys.track($0.artist, $0.title) }
             .filter { !knownKeys.contains(Keys.track($0.artist, $0.title)) }
         let size = Self.mixSize
-        var freshCount = Int((Double(size) * (0.15 + 0.7 * min(1, max(0, input.discover)))).rounded())
+        let level: Double = min(1.0, max(0.0, input.discover))
+        let share: Double = 0.15 + 0.7 * level
+        var freshCount = Int((Double(size) * share).rounded())
         freshCount = min(freshCount, new.count)
         let familiarCount = min(size - freshCount, known.count)
         if familiarCount < size - freshCount { freshCount = min(new.count, size - familiarCount) }

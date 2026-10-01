@@ -47,7 +47,9 @@ public enum Credits {
      */
     public static func people(_ artist: String, _ title: String) -> [String] {
         let split = TextTools.splitArtists(artist)
-        let parts = (split.isEmpty ? [artist] : split) + featured(title) + (split.count > 1 ? [artist] : [])
+        var parts: [String] = split.isEmpty ? [artist] : split
+        parts += featured(title)
+        if split.count > 1 { parts.append(artist) }
         return parts.map { $0.trimmed() }.filter { !key($0).isEmpty }.distinct(by: key)
     }
 }
