@@ -1,0 +1,123 @@
+[0/1] Planning build
+Building for debugging...
+[0/4] Write swift-version-1977FEB4D2752686.txt
+[1/3] Linking kultrdl-probe
+[2/3] Applying kultrdl-probe
+Build of product 'kultrdl-probe' complete! (4.91s)
+
+== Search
+  ok    search YouTube Music                           0.7s  20 tracks, 19 albums; Daft Punk, Pharrell Williams, Nile Rodgers – Get Lucky (feat. Pharrell Williams and Nile Rodgers)
+  ok    search YouTube                                 0.5s  20 tracks, 0 albums; Daft Punk – Get Lucky ft. Pharrell Williams, Nile Rodgers
+  ok    search Apple Music                             0.6s  30 tracks, 20 albums; Daft Punk, Pharrell Williams & Nile Rodgers – Get Lucky
+  ok    search Deezer                                  0.5s  30 tracks, 20 albums; Daft Punk – Get Lucky (Radio Edit - feat. Pharrell Williams and Nile Rodgers)
+  ok    search SoundCloud                              1.5s  25 tracks, 0 albums; Daft Punk, Pharrell Williams, Nile Rodgers – Get Lucky (feat. Pharrell Williams and Nile Rodgers)
+  ok    search Bandcamp                                0.5s  50 tracks, 3 albums; Slow Hearts – Daft Punk - Get Lucky (eaz rework)
+  ok    album from YouTube Music search                0.8s  Random Access Memories: 13 tracks
+  ok    album from Deezer search                       0.5s  Discovery: 14 tracks
+  ok    match an Apple Music track                     1.0s  Get Lucky (feat. Pharrell Williams and Nile Rodgers) → https://music.youtube.com/watch?v=4D7u5KF7SP8
+
+== Links
+  ok    YouTube video                                  0.2s  track: Daft Punk – Get Lucky (Official Audio) (feat. Pharrell Williams & Nile Rodgers) [playable]
+  ok    YouTube Music                                  0.1s  track: Daft Punk – Get Lucky (Official Audio) (feat. Pharrell Williams & Nile Rodgers) [playable]
+  ok    youtu.be                                       0.3s  track: Daft Punk – Get Lucky (Official Audio) (feat. Pharrell Williams & Nile Rodgers) [playable]
+  ok    YouTube playlist                               2.7s  Playlist: Popular Music Videos, 182 tracks
+  ok    Spotify track                                  0.5s  track: Daft Punk, Pharrell Williams, Nile Rodgers – Get Lucky (feat. Pharrell Williams and Nile Rodgers)
+  ok    Spotify album                                  0.1s  Album: Random Access Memories, 13 tracks
+  ok    Apple Music album                              0.3s  Album: Random Access Memories, 13 tracks
+  ok    Apple Music song                               0.2s  track: Daft Punk, Pharrell Williams & Nile Rodgers – Get Lucky
+  ok    Deezer track                                   0.2s  track: Daft Punk – Get Lucky (feat. Pharrell Williams and Nile Rodgers)
+  ok    Deezer album                                   0.2s  Album: Random Access Memories, 13 tracks
+  ok    SoundCloud track                               0.2s  track: Forss – Flickermood [playable]
+  ok    Bandcamp album                                 1.0s  Album: Minecraft - Volume Alpha, 24 tracks
+  ok    Bandcamp track                                 0.6s  track: C418 – Sweden [playable]
+  ok    Tidal track                                    0.6s  track: https://tidal.com/artist/4877107 – Le cordon musical
+
+== YouTube challenge solver
+  ok    find the current player                        0.1s  https://www.youtube.com/s/player/8ab5c328/player_ias.vflset/en_US/base.js
+  ok    signature timestamp                            0.0s  20725
+  ok    solve an n challenge                           3.9s  gB7bY8xwQZ3kE5p1 → l5P4JHAOaghPTZg
+  ok    solve a signature                              0.0s  104 → 102 characters
+
+== YouTube player clients
+  FAIL  client visionos                                1.3s  Sign in to confirm you’re not a bot
+  FAIL  client tv                                      0.1s  Sign in to confirm you’re not a bot
+  FAIL  client web_embedded                            0.1s  This video is unavailable
+  FAIL  client tv_downgraded                           0.1s  Sign in to confirm you’re not a bot
+  FAIL  client android_vr                              0.2s  Sign in to confirm you’re not a bot
+  FAIL  client ios                                     0.1s  Sign in to confirm you’re not a bot
+  FAIL  fallback order                                 0.7s  Sign in to confirm you’re not a bot
+
+== Streams, downloads and conversion
+  FAIL  YouTube playback stream                        0.8s  Sign in to confirm you’re not a bot
+  FAIL  YouTube download (Opus)                        0.7s  Sign in to confirm you’re not a bot
+  FAIL  YouTube download (AAC)                         0.7s  Sign in to confirm you’re not a bot
+  ok    SoundCloud stream                              0.5s  MP3, file
+  ok    Bandcamp stream                                0.8s  MP3 128 kbps, file
+  ok    cover art                                      0.1s  20 KB → 31 KB square
+  ok    Bandcamp download (for conversion)             1.4s  mp3, 3430 KB
+  ok    convert mp3 → MP3 · 320 kbps                   6.9s  mp3, 8453 KB
+  ok    convert mp3 → FLAC · 16-bit                    5.4s  flac, 8499 KB
+  ok    convert mp3 → AAC (M4A) · 256 kbps             3.0s  m4a, 6276 KB
+  ok    convert mp3 → ALAC (M4A) · 16-bit              2.7s  m4a, 9805 KB
+  ok    convert mp3 → Opus · Original, no re-encode    4.3s  opus, 4290 KB
+  ok    convert mp3 → Opus · 160 kbps                  4.3s  opus, 4290 KB
+  ok    convert mp3 → Ogg Vorbis · 256 kbps           13.2s  ogg, 6852 KB
+  ok    convert mp3 → WAV · 16-bit                     1.3s  wav, 37156 KB
+  ok    convert mp3 → Original file                    0.0s  mp3, 3401 KB
+
+== Recommendations
+  ok    Deezer artist                                  0.2s  Daft Punk deezer:27, 5214462 fans
+  ok    Deezer discography                             0.6s  38 releases; Random Access Memories (Drumless Edition) (album, 2023-11-17, Electro), Random Access Memories (10th Anniversary Edition) (album, 2023-05-12, Electro), GLBTM (Studio Outtakes) (single, 2023-04-20, Electro)
+  ok    Deezer popular albums                          0.4s  Random Access Memories, Discovery, Homework, Alive 2007
+  ok    Deezer related artists                         0.3s  Justice, Cassius, Etienne de Crécy, The Chemical Brothers, Yuksek, Mr. Oizo
+  ok    Deezer top songs                               0.3s  One More Time, Instant Crush (feat. Julian Casablancas), Harder, Better, Faster, Stronger, Get Lucky (feat. Pharrell Williams and Nile Rodgers), Get Lucky (Radio Edit - feat. Pharrell Williams and Nile Rodgers)
+  ok    Apple Music discography                        0.2s  apple:5468295: Random Access Memories (Drumless Edition) (album, 2023-11-17), GLBTM (Studio Outtakes) [Edit] (single, 2023-04-20), I Gotta Try You Girl (feat. Daft Punk) [Daft Punk Edit] (ep, 2021-02-26)
+  ok    YouTube Music radio                            0.6s  49 songs; Massive Attack – Unfinished Sympathy, Moby – Porcelain, Portishead – Glory Box, Lana Del Rey – Summertime Sadness
+  ok    ListenBrainz top artists                       0.6s  Röyksopp 109, Carbon Based Lifeforms 69, Christian Löffler 50, Susanne Sundfør 28, Marconi Union 25
+  ok    ListenBrainz weekly playlists                  0.4s  25 playlists; Daily Jams for rob, 2026-10-01 Thu: 50 songs, kind daily-jams
+  ok    a whole For you page                           7.2s  7s: 0 releases, mixes Daily Mix 1 (27), Daily Mix 2 (8), Daily Mix 3 (8), Discover (29), Because you play Daft Punk (30), Because you play Massive Attack (30); albums Archive – You All Look the Same to Me, Hooverphonic – With Orchestra Live, Morcheeba – Blood Like Lemonade
+
+== Navidrome
+  ok    sign in                                        0.0s  Navidrome 0.64.2 (10114574)
+  ok    wrong password is refused                      0.0s  The server didn't accept the username or password.
+  ok    every song                                     0.0s  Air – Sexy Boy (Moon Safari, Electronic), Daft Punk – Aerodynamic (Discovery, Electronic), Daft Punk – One More Time (Discovery, Electronic), Portishead – Roads (Dummy, Electronic), Massive Attack – Teardrop (Mezzanine, Electronic)
+  ok    stream a song                                  0.0s  118 KB
+  ok    download the original                          0.0s  118 KB, starts 0000001c66747970
+  ok    as a track                                     0.0s  navidrome:0nVGzMqn5I48e3juBL78jr, plays from http://127.0.0.1:4533/rest/stream?id=0nVGzMqn5I48e3juBL78jr
+  ok    similar artists (needs Last.fm on the server)   1.4s  Massive Attack, Portishead, Goldfrapp, Moby, Archive
+  ok    playlists                                      0.0s  0 playlists
+  ok    rescan                                         0.0s  scanning
+
+== Servers
+  ok    FTP                                            0.0s  home /, pin -…, folder true
+  ok    FTPS explicit                                  0.1s  home /, pin SHA256:fdGPYTob0sIdM…, folder true
+  ok    FTPS implicit                                  0.0s  home /, pin SHA256:fdGPYTob0sIdM…, folder true
+  ok    SFTP password                                  0.1s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    read key ed25519                               0.0s  Ed25519
+  ok    SFTP key ed25519                               0.1s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    read key ecdsa                                 0.0s  ECDSA NISTP256
+  ok    SFTP key ecdsa                                 0.1s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    read key rsa                                   0.0s  RSA
+  ok    SFTP key rsa                                   0.1s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    read key ed25519-pass                          2.3s  Ed25519
+  ok    SFTP key ed25519-pass                          4.6s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    read key rsa-pass                              2.4s  RSA
+  ok    SFTP key rsa-pass                              5.1s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    read key ecdsa-gcm-pass                        2.5s  ECDSA NISTP256
+  ok    SFTP key ecdsa-gcm-pass                        4.8s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    read key ed25519-cbc-pass                      1.2s  Ed25519
+  ok    SFTP key ed25519-cbc-pass                      2.3s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    read key rsa-pem                               0.0s  RSA
+  ok    SFTP key rsa-pem                               0.1s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    read key rsa-pem-pass                          0.0s  RSA
+  ok    SFTP key rsa-pem-pass                          0.1s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    read key ecdsa-pem                             0.0s  ECDSA NISTP384
+  ok    SFTP key ecdsa-pem                             0.1s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    read key pkcs8-ed25519                         0.0s  Ed25519
+  ok    SFTP key pkcs8-ed25519                         0.1s  home /, pin SHA256:jqDkRTkGpWhwv…, folder true
+  ok    SFTP wrong password is refused                 0.0s  The server didn't accept the username, password or key.
+  ok    SFTP changed key is refused                    0.0s  The server's key changed
+  ok    FTPS untrusted certificate is reported         0.0s  Trust this certificate? SHA256:fdGPYTob0sIdMv7AZ…
+
+88 passed, 10 failed
+failed: client visionos, client tv, client web_embedded, client tv_downgraded, client android_vr, client ios, fallback order, YouTube playback stream, YouTube download (Opus), YouTube download (AAC)

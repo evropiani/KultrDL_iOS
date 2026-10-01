@@ -1,0 +1,182 @@
+[0/1] Planning build
+Test Suite 'All tests' started at 2026-10-01 20:06:32.361.
+Test Suite 'KultrDLKitPackageTests.xctest' started at 2026-10-01 20:06:32.363.
+Test Suite 'CreditsTests' started at 2026-10-01 20:06:32.363.
+Test Case '-[KultrDLCoreTests.CreditsTests testBlockingAnArtistBlocksTheirSongsAndSongsTheyAreOn]' started.
+Test Case '-[KultrDLCoreTests.CreditsTests testBlockingAnArtistBlocksTheirSongsAndSongsTheyAreOn]' passed (0.004 seconds).
+Test Case '-[KultrDLCoreTests.CreditsTests testFindsEveryoneOnATrack]' started.
+Test Case '-[KultrDLCoreTests.CreditsTests testFindsEveryoneOnATrack]' passed (0.001 seconds).
+Test Suite 'CreditsTests' passed at 2026-10-01 20:06:32.368.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.004 (0.005) seconds
+Test Suite 'DiscoveryTests' started at 2026-10-01 20:06:32.368.
+Test Case '-[KultrDLCoreTests.DiscoveryTests testBlockedArtistsAndDismissedAlbumsNeverShowUp]' started.
+Test Case '-[KultrDLCoreTests.DiscoveryTests testBlockedArtistsAndDismissedAlbumsNeverShowUp]' passed (0.071 seconds).
+Test Case '-[KultrDLCoreTests.DiscoveryTests testBuildsTheFeed]' started.
+Test Case '-[KultrDLCoreTests.DiscoveryTests testBuildsTheFeed]' passed (0.022 seconds).
+Test Case '-[KultrDLCoreTests.DiscoveryTests testFeedSurvivesSavingAndRules]' started.
+Test Case '-[KultrDLCoreTests.DiscoveryTests testFeedSurvivesSavingAndRules]' passed (0.007 seconds).
+Test Case '-[KultrDLCoreTests.DiscoveryTests testSpreadKeepsTheSameArtistApart]' started.
+Test Case '-[KultrDLCoreTests.DiscoveryTests testSpreadKeepsTheSameArtistApart]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.DiscoveryTests testTheDiscoverSliderChangesTheMix]' started.
+Test Case '-[KultrDLCoreTests.DiscoveryTests testTheDiscoverSliderChangesTheMix]' passed (0.025 seconds).
+Test Case '-[KultrDLCoreTests.DiscoveryTests testWithoutAConnectionItStillMakesMixesFromWhatIsThere]' started.
+Test Case '-[KultrDLCoreTests.DiscoveryTests testWithoutAConnectionItStillMakesMixesFromWhatIsThere]' passed (0.006 seconds).
+Test Suite 'DiscoveryTests' passed at 2026-10-01 20:06:32.502.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.133 (0.135) seconds
+Test Suite 'EngineFileTests' started at 2026-10-01 20:06:32.502.
+Test Case '-[KultrDLCoreTests.EngineFileTests testPublishedEngineDecodes]' started.
+Test Case '-[KultrDLCoreTests.EngineFileTests testPublishedEngineDecodes]' passed (0.003 seconds).
+Test Suite 'EngineFileTests' passed at 2026-10-01 20:06:32.505.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'JSONTests' started at 2026-10-01 20:06:32.505.
+Test Case '-[KultrDLCoreTests.JSONTests testKeepsOrderAndReadsLoosely]' started.
+Test Case '-[KultrDLCoreTests.JSONTests testKeepsOrderAndReadsLoosely]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.JSONTests testRoundTrips]' started.
+Test Case '-[KultrDLCoreTests.JSONTests testRoundTrips]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.JSONTests testSkipsGoogleGuard]' started.
+Test Case '-[KultrDLCoreTests.JSONTests testSkipsGoogleGuard]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.JSONTests testWalksInDocumentOrder]' started.
+Test Case '-[KultrDLCoreTests.JSONTests testWalksInDocumentOrder]' passed (0.000 seconds).
+Test Suite 'JSONTests' passed at 2026-10-01 20:06:32.508.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'KeysTests' started at 2026-10-01 20:06:32.508.
+Test Case '-[KultrDLCoreTests.KeysTests testEditionsAndRemastersAreTheSameAlbum]' started.
+Test Case '-[KultrDLCoreTests.KeysTests testEditionsAndRemastersAreTheSameAlbum]' passed (0.002 seconds).
+Test Suite 'KeysTests' passed at 2026-10-01 20:06:32.510.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'LinksTests' started at 2026-10-01 20:06:32.510.
+Test Case '-[KultrDLCoreTests.LinksTests testCatalogues]' started.
+Test Case '-[KultrDLCoreTests.LinksTests testCatalogues]' passed (0.002 seconds).
+Test Case '-[KultrDLCoreTests.LinksTests testFindsLinksInSharedText]' started.
+Test Case '-[KultrDLCoreTests.LinksTests testFindsLinksInSharedText]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.LinksTests testYouTube]' started.
+Test Case '-[KultrDLCoreTests.LinksTests testYouTube]' passed (0.001 seconds).
+Test Suite 'LinksTests' passed at 2026-10-01 20:06:32.514.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'MatcherTests' started at 2026-10-01 20:06:32.514.
+Test Case '-[KultrDLCoreTests.MatcherTests testAsksForTheVersionWhenTheTargetIsLive]' started.
+Test Case '-[KultrDLCoreTests.MatcherTests testAsksForTheVersionWhenTheTargetIsLive]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.MatcherTests testDurationBreaksTies]' started.
+Test Case '-[KultrDLCoreTests.MatcherTests testDurationBreaksTies]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.MatcherTests testPrefersTheStudioRecording]' started.
+Test Case '-[KultrDLCoreTests.MatcherTests testPrefersTheStudioRecording]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.MatcherTests testRejectsUnrelated]' started.
+Test Case '-[KultrDLCoreTests.MatcherTests testRejectsUnrelated]' passed (0.001 seconds).
+Test Suite 'MatcherTests' passed at 2026-10-01 20:06:32.518.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'MediaFileTests' started at 2026-10-01 20:06:32.518.
+Test Case '-[KultrDLCoreTests.MediaFileTests testID3]' started.
+Test Case '-[KultrDLCoreTests.MediaFileTests testID3]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.MediaFileTests testVorbisComments]' started.
+Test Case '-[KultrDLCoreTests.MediaFileTests testVorbisComments]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.MediaFileTests testWAV]' started.
+Test Case '-[KultrDLCoreTests.MediaFileTests testWAV]' passed (0.002 seconds).
+Test Case '-[KultrDLCoreTests.MediaFileTests testWebM]' started.
+Test Case '-[KultrDLCoreTests.MediaFileTests testWebM]' passed (0.001 seconds).
+Test Suite 'MediaFileTests' passed at 2026-10-01 20:06:32.525.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.005 (0.006) seconds
+Test Suite 'ParserTests' started at 2026-10-01 20:06:32.525.
+Test Case '-[KultrDLCoreTests.ParserTests testAppleMusicSearchAndAlbum]' started.
+Test Case '-[KultrDLCoreTests.ParserTests testAppleMusicSearchAndAlbum]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.ParserTests testBandcampOdesliAndPages]' started.
+Test Case '-[KultrDLCoreTests.ParserTests testBandcampOdesliAndPages]' passed (0.002 seconds).
+Test Case '-[KultrDLCoreTests.ParserTests testBandcampPage]' started.
+Test Case '-[KultrDLCoreTests.ParserTests testBandcampPage]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.ParserTests testDeezerAlbum]' started.
+Test Case '-[KultrDLCoreTests.ParserTests testDeezerAlbum]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.ParserTests testSoundCloudTrack]' started.
+Test Case '-[KultrDLCoreTests.ParserTests testSoundCloudTrack]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.ParserTests testSpotifyEmbed]' started.
+Test Case '-[KultrDLCoreTests.ParserTests testSpotifyEmbed]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.ParserTests testVideoDetails]' started.
+Test Case '-[KultrDLCoreTests.ParserTests testVideoDetails]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.ParserTests testYouTubeMusicSongs]' started.
+Test Case '-[KultrDLCoreTests.ParserTests testYouTubeMusicSongs]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.ParserTests testYouTubeVideos]' started.
+Test Case '-[KultrDLCoreTests.ParserTests testYouTubeVideos]' passed (0.000 seconds).
+Test Suite 'ParserTests' passed at 2026-10-01 20:06:32.533.
+	 Executed 9 tests, with 0 failures (0 unexpected) in 0.007 (0.008) seconds
+Test Suite 'RecommendationSourceTests' started at 2026-10-01 20:06:32.533.
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testAppleMusicSinglesAndEPs]' started.
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testAppleMusicSinglesAndEPs]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testDeezerDiscography]' started.
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testDeezerDiscography]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testListenBrainzPlaylists]' started.
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testListenBrainzPlaylists]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testSubsonicAnswersAndErrors]' started.
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testSubsonicAnswersAndErrors]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testSubsonicClientSignsEveryRequest]' started.
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testSubsonicClientSignsEveryRequest]' passed (0.010 seconds).
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testYouTubeMusicRadio]' started.
+Test Case '-[KultrDLCoreTests.RecommendationSourceTests testYouTubeMusicRadio]' passed (0.000 seconds).
+Test Suite 'RecommendationSourceTests' passed at 2026-10-01 20:06:32.547.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.013 (0.014) seconds
+Test Suite 'RemotePathTests' started at 2026-10-01 20:06:32.547.
+Test Case '-[KultrDLCoreTests.RemotePathTests testLayoutsNameFoldersSafely]' started.
+Test Case '-[KultrDLCoreTests.RemotePathTests testLayoutsNameFoldersSafely]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.RemotePathTests testModelsDecodeAndroidBackups]' started.
+Test Case '-[KultrDLCoreTests.RemotePathTests testModelsDecodeAndroidBackups]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.RemotePathTests testNormalisesAndJoins]' started.
+Test Case '-[KultrDLCoreTests.RemotePathTests testNormalisesAndJoins]' passed (0.000 seconds).
+Test Suite 'RemotePathTests' passed at 2026-10-01 20:06:32.548.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'StreamTests' started at 2026-10-01 20:06:32.548.
+Test Case '-[KultrDLCoreTests.StreamTests testHLS]' started.
+Test Case '-[KultrDLCoreTests.StreamTests testHLS]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.StreamTests testSolverScriptsAreBundled]' started.
+Test Case '-[KultrDLCoreTests.StreamTests testSolverScriptsAreBundled]' passed (0.006 seconds).
+Test Case '-[KultrDLCoreTests.StreamTests testTSDemux]' started.
+Test Case '-[KultrDLCoreTests.StreamTests testTSDemux]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.StreamTests testYouTubeLinks]' started.
+Test Case '-[KultrDLCoreTests.StreamTests testYouTubeLinks]' passed (0.001 seconds).
+Test Suite 'StreamTests' passed at 2026-10-01 20:06:32.558.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.008 (0.009) seconds
+Test Suite 'TasteTests' started at 2026-10-01 20:06:32.558.
+Test Case '-[KultrDLCoreTests.TasteTests testDaysAndDates]' started.
+Test Case '-[KultrDLCoreTests.TasteTests testDaysAndDates]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.TasteTests testRecentPlaysOutweighOldOnesAndSkipsCountAgainst]' started.
+Test Case '-[KultrDLCoreTests.TasteTests testRecentPlaysOutweighOldOnesAndSkipsCountAgainst]' passed (0.001 seconds).
+Test Case '-[KultrDLCoreTests.TasteTests testSuggestionsGrowFromArtistsCreditedOnTheirOwn]' started.
+Test Case '-[KultrDLCoreTests.TasteTests testSuggestionsGrowFromArtistsCreditedOnTheirOwn]' passed (0.000 seconds).
+Test Suite 'TasteTests' passed at 2026-10-01 20:06:32.561.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'TextTests' started at 2026-10-01 20:06:32.561.
+Test Case '-[KultrDLCoreTests.TextTests testArtworkColor]' started.
+Test Case '-[KultrDLCoreTests.TextTests testArtworkColor]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.TextTests testClocksAndDates]' started.
+Test Case '-[KultrDLCoreTests.TextTests testClocksAndDates]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.TextTests testCoreTitleDropsFeaturesAndRemasters]' started.
+Test Case '-[KultrDLCoreTests.TextTests testCoreTitleDropsFeaturesAndRemasters]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.TextTests testFormat]' started.
+Test Case '-[KultrDLCoreTests.TextTests testFormat]' passed (0.000 seconds).
+Test Case '-[KultrDLCoreTests.TextTests testSimilarityAndArtists]' started.
+Test Case '-[KultrDLCoreTests.TextTests testSimilarityAndArtists]' passed (0.003 seconds).
+Test Case '-[KultrDLCoreTests.TextTests testYouTubeTitles]' started.
+Test Case '-[KultrDLCoreTests.TextTests testYouTubeTitles]' passed (0.000 seconds).
+Test Suite 'TextTests' passed at 2026-10-01 20:06:32.565.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.004 (0.005) seconds
+Test Suite 'TranscoderTests' started at 2026-10-01 20:06:32.565.
+Test Case '-[KultrDLMediaTests.TranscoderTests testAACFromAnM4A]' started.
+Test Case '-[KultrDLMediaTests.TranscoderTests testAACFromAnM4A]' passed (0.430 seconds).
+Test Case '-[KultrDLMediaTests.TranscoderTests testCoverIsSquare]' started.
+Test Case '-[KultrDLMediaTests.TranscoderTests testCoverIsSquare]' passed (0.034 seconds).
+Test Case '-[KultrDLMediaTests.TranscoderTests testFLAC]' started.
+Test Case '-[KultrDLMediaTests.TranscoderTests testFLAC]' passed (0.155 seconds).
+Test Case '-[KultrDLMediaTests.TranscoderTests testM4A]' started.
+Test Case '-[KultrDLMediaTests.TranscoderTests testM4A]' passed (0.088 seconds).
+Test Case '-[KultrDLMediaTests.TranscoderTests testMP3]' started.
+Test Case '-[KultrDLMediaTests.TranscoderTests testMP3]' passed (0.116 seconds).
+Test Case '-[KultrDLMediaTests.TranscoderTests testOggFormats]' started.
+Test Case '-[KultrDLMediaTests.TranscoderTests testOggFormats]' passed (0.143 seconds).
+Test Case '-[KultrDLMediaTests.TranscoderTests testWAV]' started.
+Test Case '-[KultrDLMediaTests.TranscoderTests testWAV]' passed (0.048 seconds).
+Test Suite 'TranscoderTests' passed at 2026-10-01 20:06:33.581.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 1.014 (1.016) seconds
+Test Suite 'KultrDLKitPackageTests.xctest' passed at 2026-10-01 20:06:33.581.
+	 Executed 63 tests, with 0 failures (0 unexpected) in 1.205 (1.218) seconds
+Test Suite 'All tests' passed at 2026-10-01 20:06:33.581.
+	 Executed 63 tests, with 0 failures (0 unexpected) in 1.205 (1.220) seconds
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
