@@ -28,6 +28,22 @@ enum StreamQuality: String, Codable, CaseIterable, Hashable {
     }
 }
 
+enum ReleaseAlerts: String, Codable, CaseIterable, Hashable {
+    case off = "OFF", weekly = "WEEKLY", asTheyCome = "AS_THEY_COME"
+
+    var label: String {
+        switch self {
+        case .off: return "Off"
+        case .weekly: return "Weekly summary"
+        case .asTheyCome: return "As they come out"
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        self = ReleaseAlerts(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .asTheyCome
+    }
+}
+
 /** A folder on a saved server that downloads are sent to. */
 struct Destination: Codable, Hashable {
     var serverId: String
@@ -78,6 +94,22 @@ struct Settings: Codable, Equatable {
     var youtubeClient = ""
     var autoUpdateEngine = true
     var lastEngineCheck: Int64 = 0
+    // Recommendations
+    var suggestions = true
+    /** 0 = mostly what you know, 1 = mostly new to you. */
+    var discoverLevel = 0.5
+    var excludedGenres: [String] = []
+    var releaseAlerts: ReleaseAlerts = .asTheyCome
+    /** How recent a release must be to count as new. */
+    var releaseWindowDays = 30
+    var usePhoneMusic = false
+    var useDeezer = true
+    var useYouTubeRadio = true
+    var lastFmUser = ""
+    var lastFmApiKey = ""
+    var listenBrainzUser = ""
+    var suggestionsOnWifiOnly = false
+    var suggestionsWhileCharging = false
 
     init() {}
 
@@ -85,6 +117,8 @@ struct Settings: Codable, Equatable {
         case theme, accentFromArtwork, accent, reduceMotion, backdropArtwork, searchSource, country
         case spotifyClientId, spotifyClientSecret, download, askEachTime, destination, saveToMusic
         case wifiOnly, embedArtwork, streamQuality, youtubeClient, autoUpdateEngine, lastEngineCheck
+        case suggestions, discoverLevel, excludedGenres, releaseAlerts, releaseWindowDays, usePhoneMusic, useDeezer
+        case useYouTubeRadio, lastFmUser, lastFmApiKey, listenBrainzUser, suggestionsOnWifiOnly, suggestionsWhileCharging
     }
 
     init(from decoder: Decoder) throws {
@@ -110,6 +144,19 @@ struct Settings: Codable, Equatable {
         youtubeClient = c.value(.youtubeClient, d.youtubeClient)
         autoUpdateEngine = c.value(.autoUpdateEngine, d.autoUpdateEngine)
         lastEngineCheck = c.value(.lastEngineCheck, d.lastEngineCheck)
+        suggestions = c.value(.suggestions, d.suggestions)
+        discoverLevel = min(1, max(0, c.value(.discoverLevel, d.discoverLevel)))
+        excludedGenres = c.value(.excludedGenres, d.excludedGenres)
+        releaseAlerts = c.value(.releaseAlerts, d.releaseAlerts)
+        releaseWindowDays = c.value(.releaseWindowDays, d.releaseWindowDays)
+        usePhoneMusic = c.value(.usePhoneMusic, d.usePhoneMusic)
+        useDeezer = c.value(.useDeezer, d.useDeezer)
+        useYouTubeRadio = c.value(.useYouTubeRadio, d.useYouTubeRadio)
+        lastFmUser = c.value(.lastFmUser, d.lastFmUser)
+        lastFmApiKey = c.value(.lastFmApiKey, d.lastFmApiKey)
+        listenBrainzUser = c.value(.listenBrainzUser, d.listenBrainzUser)
+        suggestionsOnWifiOnly = c.value(.suggestionsOnWifiOnly, d.suggestionsOnWifiOnly)
+        suggestionsWhileCharging = c.value(.suggestionsWhileCharging, d.suggestionsWhileCharging)
     }
 }
 

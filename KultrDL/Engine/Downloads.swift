@@ -103,6 +103,8 @@ final class Downloads {
     @ObservationIgnored private var processingTask: BGProcessingTask?
     @ObservationIgnored private let downloader = StreamDownloader()
     @ObservationIgnored private var lastLive = Date.distantPast
+    /** Server folders that received files since the queue last emptied. */
+    @ObservationIgnored private var sentTo = Set<Destination>()
 
     init(graph: AppGraph) {
         self.graph = graph
@@ -249,6 +251,7 @@ final class Downloads {
             current = (job.trackId, work)
             do {
                 let note = try await work.value
+                if note != nil, let destination = job.destination { sentTo.insert(destination) }
                 if self.job(job.trackId)?.state == .running {
                     set(job.trackId) {
                         $0.state = .done
@@ -287,6 +290,10 @@ final class Downloads {
     private func finishedAll() {
         processingTask?.setTaskCompleted(success: true)
         processingTask = nil
+        // Have Navidrome look for what reached its music folder.
+        let sent = sentTo
+        sentTo = []
+        if !sent.isEmpty { Task { await graph.recommender.afterUploads(sent) } }
     }
 
     /** Progress from the work, thinned out to a few updates a second. */
@@ -335,7 +342,10 @@ final class Downloads {
                 }
                 only = next
             }
-            let stream = try await graph.finder.find(source, purpose: .download(prefer: preset.preferredCodec), client: preferred, onlyClient: only)
+            let stream = track.source == .navidrome
+                // Navidrome's original file, as it is on the server.
+                ? MediaStream(url: source, kind: .file, container: "mp3", expiresAt: .distantFuture)
+                : try await graph.finder.find(source, purpose: .download(prefer: preset.preferredCodec), client: preferred, onlyClient: only)
             if stream.isPreview {
                 throw KultrError("Only a 30-second preview of this track is available.")
             }

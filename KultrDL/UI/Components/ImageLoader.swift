@@ -13,6 +13,8 @@ final class ImageLoader: @unchecked Sendable {
 
     private let memory = NSCache<NSString, UIImage>()
     private let session: URLSession
+    /** Adds a login to addresses that need one (Navidrome covers); the cache keys stay the plain address. */
+    var sign: (@Sendable (URL) -> URL)?
 
     private init() {
         memory.totalCostLimit = 96 * 1024 * 1024
@@ -35,7 +37,7 @@ final class ImageLoader: @unchecked Sendable {
 
     func image(_ url: URL, pixelSize: Int) async -> UIImage? {
         if let hit = cached(url, pixelSize: pixelSize) { return hit }
-        guard let result = try? await session.data(from: url) else { return nil }
+        guard let result = try? await session.data(from: sign?(url) ?? url) else { return nil }
         if let http = result.1 as? HTTPURLResponse, !(200..<300).contains(http.statusCode) { return nil }
         guard let image = Self.downsample(result.0, pixelSize: pixelSize) else { return nil }
         let cost = Int(image.size.width * image.size.height * image.scale * image.scale * 4)

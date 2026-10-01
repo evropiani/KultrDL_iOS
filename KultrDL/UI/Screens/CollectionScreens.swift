@@ -50,13 +50,7 @@ struct CollectionScreen: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if let c = shown {
-                    let meta = [
-                        c.subtitle,
-                        c.year.map(String.init),
-                        (c.tracks.isEmpty ? c.trackCount : c.tracks.count).map { Format.count($0, "track") },
-                        totalDuration(c.tracks),
-                    ].compactMap { $0 }.joined(separator: " · ")
-                    CollectionHeader(artworkUrl: c.artworkUrl, eyebrow: "\(c.source.label) · \(c.kind.label)", title: c.title, meta: meta)
+                    CollectionHeader(artworkUrl: c.artworkUrl, eyebrow: Self.eyebrow(c), title: c.title, meta: Self.meta(c))
                 }
                 if let error {
                     EmptyState(icon: "icloud.slash", title: "Couldn't open this", message: error)
@@ -64,10 +58,24 @@ struct CollectionScreen: View {
                     PillRow {
                         Pill("Play", icon: "play.fill", accent: true, enabled: !c.tracks.isEmpty) { actions.play(c.tracks) }
                         Pill("Shuffle", icon: "shuffle", enabled: !c.tracks.isEmpty) { actions.shuffle(c.tracks) }
+                        if let mix = c.id.hasPrefix("mix:") ? graph.recommender.feed?.mixes.first(where: { "mix:" + $0.id == c.id }) : nil {
+                            Pill("Keep updated", icon: "arrow.triangle.2.circlepath") { actions.followMix(mix) }
+                        }
                         Pill("Download all", icon: "arrow.down.circle", enabled: !c.tracks.isEmpty) { actions.download(c.tracks) }
+                        if actions.canDownloadToNavidrome {
+                            Pill("Download to Navidrome", icon: "externaldrive.badge.icloud", enabled: !c.tracks.isEmpty) { actions.downloadToNavidrome(c.tracks) }
+                        }
                         Pill("Download as…", icon: "slider.horizontal.3", enabled: !c.tracks.isEmpty) { actions.downloadAs(c.tracks) }
                         Pill("Save as playlist", icon: "text.badge.plus", enabled: !c.tracks.isEmpty) { actions.saveAsPlaylist(c) }
                         Pill("Save tracks", icon: "bookmark", enabled: !c.tracks.isEmpty) { actions.setSaved(c.tracks, true) }
+                    }
+                    let hidden = c.tracks.filter { graph.taste.blocks.blocks($0) }.count
+                    if hidden > 0 {
+                        Text("\(Format.count(hidden, "song")) by blocked artists hidden")
+                            .font(KFont.bodySmall)
+                            .foregroundStyle(theme.colors.ink3)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 4)
                     }
                     TrackRows(tracks: c.tracks, numbered: c.kind == .album, keyPrefix: "c") { actions.play(c.tracks, $0) }
                 } else {
@@ -103,6 +111,31 @@ struct CollectionScreen: View {
                 }
             }
         }
+    }
+}
+
+extension CollectionScreen {
+    static func eyebrow(_ c: TrackCollection) -> String {
+        if c.id.hasPrefix("mix:") { return "Made for you" }
+        switch c.recordType {
+        case "single": return "\(c.source.label) · Single"
+        case "ep": return "\(c.source.label) · EP"
+        default: return "\(c.source.label) · \(c.kind.label)"
+        }
+    }
+
+    /** Artist, when it came out (how long ago, for this year's releases), how many tracks and how long. */
+    static func meta(_ c: TrackCollection) -> String {
+        var parts: [String] = []
+        if let subtitle = c.subtitle { parts.append(subtitle) }
+        if let date = c.releaseDate, Day(date)?.year == Day.today().year, let released = Format.released(date) {
+            parts.append(released)
+        } else if let year = c.year {
+            parts.append(String(year))
+        }
+        if let count = c.tracks.isEmpty ? c.trackCount : c.tracks.count { parts.append(Format.count(count, "track")) }
+        if let duration = totalDuration(c.tracks) { parts.append(duration) }
+        return parts.joined(separator: " · ")
     }
 }
 

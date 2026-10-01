@@ -49,11 +49,15 @@ jobs:
       - name: Live check
         if: steps.tests.outcome == 'success'
         continue-on-error: true
-        timeout-minutes: 15
+        timeout-minutes: 20
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pip3 install --quiet --break-system-packages pyftpdlib pyopenssl asyncssh bcrypt 2>/dev/null || pip3 install --quiet pyftpdlib pyopenssl asyncssh bcrypt || true
           export KULTRDL_TEST_KEYS="$RUNNER_TEMP/kultrdl-test-keys"
+          export KULTRDL_NAVIDROME="$(.github/scripts/navidrome.sh || true)"
+          echo "Navidrome for the probe: ${KULTRDL_NAVIDROME:-none}"
           if [ -f .github/scripts/test-servers.py ]; then
             python3 -u .github/scripts/test-servers.py > servers.log 2>&1 &
             sleep 8
@@ -125,7 +129,7 @@ jobs:
             xcrun simctl spawn "$UDID" log show --last 20m --style compact --predicate 'process == "KultrDL"' > "shots/${prefix}log.txt" 2>&1 || true
             xcrun simctl shutdown "$UDID" || true
           }
-          shoot 26 "" home search found album player mini library downloads settings servers
+          shoot 26 "" home search found album player mini library downloads settings servers foryou mix recommendations
           shoot 18 "ios18-" home found mini
           LOOK=light shoot 26 "light-" home found player
 

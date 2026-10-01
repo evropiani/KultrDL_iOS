@@ -33,6 +33,15 @@ struct PlayerUiState: Equatable {
     }
 }
 
+/** How the song now loaded is being listened to, for the listening log. */
+private struct Listen {
+    let track: Track
+    let startedAt: Int64
+    var listenedMs: Int64 = 0
+    var playingSince: Date?
+    var durationMs: Int64?
+}
+
 /** What is saved so the queue is there again next time. */
 private struct SavedQueue: Codable {
     var queue: [Track]
@@ -70,6 +79,7 @@ final class PlayerController {
     @ObservationIgnored private var artworkFor: String?
     @ObservationIgnored private var artwork: MPMediaItemArtwork?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private var listen: Listen?
 
     init(graph: AppGraph) {
         self.graph = graph
@@ -94,7 +104,10 @@ final class PlayerController {
             }
         }
         center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.saveNow() }
+            MainActor.assumeIsolated {
+                self?.saveNow()
+                if let store = self?.graph.listening { Task { await store.saveNow() } }
+            }
         }
         restore()
     }
@@ -142,6 +155,12 @@ final class PlayerController {
         state.queue.append(contentsOf: tracks)
         original?.append(contentsOf: tracks)
         queueChanged()
+    }
+
+    /** A song chosen in the queue: the one playing counts as skipped if it had only just started. */
+    func choose(_ index: Int) {
+        endListen(finished: false, skipped: true)
+        jumpTo(index)
     }
 
     func jumpTo(_ index: Int) {
@@ -210,6 +229,7 @@ final class PlayerController {
     }
 
     func stop() {
+        endListen(finished: false, skipped: false)
         teardown()
         state = PlayerUiState()
         original = nil
@@ -250,6 +270,7 @@ final class PlayerController {
 
     func next() {
         guard !state.queue.isEmpty else { return }
+        endListen(finished: false, skipped: true)
         if state.index + 1 < state.queue.count {
             jumpTo(state.index + 1)
         } else if state.repeatMode == .all {
@@ -261,6 +282,7 @@ final class PlayerController {
         if positionMs() > 4000 || state.index <= 0 {
             seekTo(0)
         } else {
+            endListen(finished: false, skipped: true)
             jumpTo(state.index - 1)
         }
     }
@@ -301,6 +323,25 @@ final class PlayerController {
     private func load(autoplay: Bool, at positionMs: Int64 = 0) {
         teardown()
         guard let track = state.current else { return }
+        // Songs by blocked artists (or with them on) are passed over, wherever they came from.
+        if graph.taste.blocks.blocks(track) {
+            if state.index + 1 < state.queue.count {
+                state.index += 1
+                state.current = state.queue[state.index]
+                load(autoplay: autoplay)
+            } else {
+                endListen(finished: false, skipped: false)
+                state.playWhenReady = false
+                state.buffering = false
+                state.ended = true
+                updateNowPlaying()
+            }
+            return
+        }
+        if listen?.track.id != track.id {
+            endListen(finished: false, skipped: false)
+            listen = Listen(track: track, startedAt: nowMs())
+        }
         state.durationMs = track.durationMs ?? 0
         state.ended = false
         state.buffering = true
@@ -326,7 +367,7 @@ final class PlayerController {
     private func attach(_ resolved: StreamResolver.Resolved, autoplay: Bool, at positionMs: Int64) {
         let item: AVPlayerItem
         switch resolved {
-        case .local(let url):
+        case .local(let url), .direct(let url):
             item = AVPlayerItem(url: url)
         case .remote(let stream):
             guard let url = URL(string: stream.url) else {
@@ -376,7 +417,10 @@ final class PlayerController {
     private func itemStatusChanged(_ status: AVPlayerItem.Status, error: Error?, duration: Double) {
         switch status {
         case .readyToPlay:
-            if duration.isFinite, duration > 0 { state.durationMs = Int64(duration * 1000) }
+            if duration.isFinite, duration > 0 {
+                state.durationMs = Int64(duration * 1000)
+                listen?.durationMs = state.durationMs
+            }
             updateNowPlaying()
             if state.index + 1 < state.queue.count { graph.resolver.prefetch(state.queue[state.index + 1]) }
         case .failed:
@@ -419,6 +463,12 @@ final class PlayerController {
 
     private func timeControlChanged(_ status: AVPlayer.TimeControlStatus) {
         state.isPlaying = status == .playing
+        if status == .playing {
+            if listen?.playingSince == nil { listen?.playingSince = Date() }
+        } else if let since = listen?.playingSince {
+            listen?.listenedMs += Int64(Date().timeIntervalSince(since) * 1000)
+            listen?.playingSince = nil
+        }
         state.buffering = status == .waitingToPlayAtSpecifiedRate || (!loaded && state.playWhenReady)
         if status == .playing, let track = state.current {
             failuresInARow = 0
@@ -432,8 +482,10 @@ final class PlayerController {
     }
 
     private func reachedEnd() {
+        endListen(finished: true, skipped: false)
         switch state.repeatMode {
         case .one:
+            if let track = state.current { listen = Listen(track: track, startedAt: nowMs(), playingSince: Date()) }
             seekTo(0)
             player.play()
         case .all where state.index + 1 >= state.queue.count:
@@ -447,6 +499,28 @@ final class PlayerController {
                 updateNowPlaying()
             }
         }
+    }
+
+    // ----------------------------------------------------- listening log --
+
+    /**
+     * Logs the song that was loaded: how long it played, and whether it was
+     * finished, or skipped by the user soon after it started.
+     */
+    private func endListen(finished: Bool, skipped userSkipped: Bool) {
+        guard var l = listen else { return }
+        listen = nil
+        if let since = l.playingSince { l.listenedMs += Int64(Date().timeIntervalSince(since) * 1000) }
+        let duration = l.durationMs ?? l.track.durationMs
+        let completed = finished || (duration.map { $0 > 0 && l.listenedMs >= $0 * 8 / 10 } ?? false)
+        let skipped = !completed && userSkipped && l.listenedMs < min(30_000, (duration ?? 60_000) / 2)
+        if !skipped && l.listenedMs < 3_000 { return }
+        let play = PlayRecord(
+            trackId: l.track.id, artist: l.track.artist, title: l.track.title, startedAt: l.startedAt,
+            listenedMs: l.listenedMs, durationMs: duration, completed: completed, skipped: skipped
+        )
+        let store = graph.listening
+        Task { await store.record(play) }
     }
 
     // -------------------------------------------------------------- system --

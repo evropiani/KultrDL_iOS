@@ -325,6 +325,17 @@ final class LibraryStore {
         }
     }
 
+    /** Replace a playlist's tracks (a followed mix gets today's songs). */
+    func replacePlaylistTracks(_ id: String, _ list: [Track]) {
+        remember(list)
+        let ids = list.map(\.id)
+        guard playlist(id)?.trackIds != ids else { return }
+        editPlaylist(id) { $0.trackIds = ids }
+    }
+
+    /** The playlist saved from a source (a mix followed with "Keep updated"). */
+    func playlist(source: String) -> Playlist? { playlists.first { $0.sourceUrl == source } }
+
     /** Playlists by when they were last changed, newest first. */
     var playlistsByDate: [Playlist] { playlists.sorted { $0.updatedAt > $1.updatedAt } }
 

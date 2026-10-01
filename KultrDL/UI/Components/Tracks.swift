@@ -37,6 +37,9 @@ struct TrackMenuItems: View {
         Divider()
         Button { actions.download([track]) } label: { Label("Download", systemImage: "arrow.down.circle") }
         Button { actions.downloadAs([track]) } label: { Label("Download as…", systemImage: "slider.horizontal.3") }
+        if actions.canDownloadToNavidrome && track.source != .navidrome {
+            Button { actions.downloadToNavidrome([track]) } label: { Label("Download to Navidrome", systemImage: "externaldrive.badge.icloud") }
+        }
         if stored?.localPath != nil {
             if !graph.servers.servers.isEmpty {
                 Button { actions.sendToServer([track]) } label: { Label("Send to server…", systemImage: "icloud.and.arrow.up") }
@@ -46,6 +49,7 @@ struct TrackMenuItems: View {
         if track.needsMatch {
             Button { actions.rematch(track) } label: { Label("Find another recording", systemImage: "arrow.triangle.2.circlepath") }
         }
+        Button(role: .destructive) { actions.blockArtist(track) } label: { Label("Block artist…", systemImage: "nosign") }
         if let page = track.pageUrl, let url = URL(string: page) {
             Divider()
             Button { actions.openInBrowser(page) } label: { Label("Open on \(track.source.label)", systemImage: "safari") }
@@ -206,7 +210,9 @@ struct TrackRows: View {
 
     var body: some View {
         let playing = AppGraph.shared.player.state.current?.id
-        ForEach(Array(tracks.enumerated()), id: \.offset) { index, track in
+        let blocks = AppGraph.shared.taste.blocks
+        // Songs by blocked artists keep their place (for playlist positions) but aren't shown; play skips them.
+        ForEach(Array(tracks.enumerated()).filter { !blocks.blocks($0.element) }, id: \.offset) { index, track in
             TrackRow(
                 track: track,
                 number: numbered ? (track.trackNumber ?? index + 1) : nil,

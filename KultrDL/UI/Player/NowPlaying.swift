@@ -341,7 +341,7 @@ private struct QueueRow: View {
                 Text(Format.duration(duration)).font(.system(size: 12).monospacedDigit()).foregroundStyle(c.ink3)
             }
             Menu {
-                Button("Play now") { player.jumpTo(index) }
+                Button("Play now") { player.choose(index) }
                 Button("Move to top") {
                     let target = currentIndex + 1
                     if target >= 0 && target < size { player.move(index, target) }
@@ -377,7 +377,7 @@ private struct QueueRow: View {
         .offset(y: drag)
         .zIndex(drag != 0 ? 1 : 0)
         .contentShape(Rectangle())
-        .onTapGesture { player.jumpTo(index) }
+        .onTapGesture { player.choose(index) }
     }
 }
 

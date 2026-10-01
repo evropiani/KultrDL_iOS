@@ -13,6 +13,8 @@ final class StreamResolver {
     enum Resolved {
         case local(URL)
         case remote(MediaStream)
+        /** Played as it is: a song in the phone's Music library, or one streamed from the user's Navidrome. */
+        case direct(URL)
     }
 
     private unowned let graph: AppGraph
@@ -37,6 +39,7 @@ final class StreamResolver {
 
     func resolve(_ track: Track) async throws -> Resolved {
         if let url = local(track.id) { return .local(url) }
+        if let mine = try own(track) { return mine }
         if let hit = cache[track.id], hit.expiresAt > Date().addingTimeInterval(90) { return .remote(hit) }
         if let running = inFlight[track.id] { return try await running.value }
         let task = Task { () throws -> Resolved in try await self.fetch(track) }
@@ -47,12 +50,35 @@ final class StreamResolver {
 
     /** Start resolving in the background, so the next track starts at once. */
     func prefetch(_ track: Track) {
-        guard local(track.id) == nil, cache[track.id] == nil, inFlight[track.id] == nil else { return }
+        guard local(track.id) == nil, track.source != .phone, track.source != .navidrome, cache[track.id] == nil, inFlight[track.id] == nil else { return }
         Task { _ = try? await resolve(track) }
     }
 
     func invalidate(_ trackId: String) {
         cache[trackId] = nil
+    }
+
+    /**
+     * The user's own songs play from where they are: a file in the phone's
+     * Music library, or a stream from their Navidrome with the login added.
+     * Music-library songs without a file (streamed from Apple Music, or in
+     * iCloud) are matched like catalogue songs instead.
+     */
+    private func own(_ track: Track) throws -> Resolved? {
+        switch track.source {
+        case .phone:
+            guard let url = track.streamUrl.flatMap(URL.init(string:)) else { return nil }
+            return .direct(url)
+        case .navidrome:
+            guard let stream = track.streamUrl else { throw KultrError("Unknown Navidrome song.") }
+            guard let client = graph.navidrome.client(graph.http) else {
+                throw KultrError("Navidrome isn't connected any more (Settings → Recommendations → Navidrome).")
+            }
+            guard let url = URL(string: client.authenticate(stream)) else { throw KultrError("The Navidrome address is broken.") }
+            return .direct(url)
+        default:
+            return nil
+        }
     }
 
     private var preferredClient: String? {
@@ -103,7 +129,21 @@ final class StreamResolver {
      * the recording it was matched to (found once, then remembered).
      */
     func sourceUrl(_ track: Track) async throws -> String {
-        if let url = track.streamUrl { return url }
+        switch track.source {
+        case .navidrome:
+            // The original file, with the login.
+            guard let client = graph.navidrome.client(graph.http) else {
+                throw KultrError("Navidrome isn't connected any more (Settings → Recommendations → Navidrome).")
+            }
+            guard let stream = track.streamUrl else { throw KultrError("Unknown Navidrome song.") }
+            return client.authenticate(stream.replacingOccurrences(of: "/rest/stream?", with: "/rest/download?"))
+        case .phone where track.streamUrl != nil:
+            throw KultrError("“\(track.title)” is already on this phone.")
+        case .phone:
+            break
+        default:
+            if let url = track.streamUrl { return url }
+        }
         if let url = graph.library.stored(track.id)?.matchedUrl { return url }
         if let url = track.matchUrl {
             graph.library.remember([track])

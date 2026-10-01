@@ -18,10 +18,14 @@ struct BackupFile: Codable {
     var playlists: [BackupPlaylist] = []
     /** Saved servers, without passwords or keys. */
     var servers: [SavedServer] = []
+    /** Blocked artists and answers to suggestions. */
+    var taste: TasteData?
+    /** The Navidrome connection, without its password. */
+    var navidrome: NavidromeConfig?
 
     init() {}
 
-    enum CodingKeys: String, CodingKey { case app, version, exportedAt, settings, tracks, playlists, servers }
+    enum CodingKeys: String, CodingKey { case app, version, exportedAt, settings, tracks, playlists, servers, taste, navidrome }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -32,6 +36,8 @@ struct BackupFile: Codable {
         tracks = c.value(.tracks, [])
         playlists = c.value(.playlists, [])
         servers = c.value(.servers, [])
+        taste = c.optional(.taste)
+        navidrome = c.optional(.navidrome)
     }
 
     func encode() throws -> Data {

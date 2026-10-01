@@ -47,9 +47,11 @@ struct SearchScreen: View {
                     } else if results.isEmpty {
                         EmptyState(icon: "magnifyingglass", title: "Nothing matches “\(query)”", message: "Try another source above.")
                     } else {
-                        if !results.collections.isEmpty {
+                        // Albums by blocked artists are left out (their songs are hidden row by row).
+                        let albums = results.collections.filter { !graph.taste.blocks.blocks($0) }
+                        if !albums.isEmpty {
                             SectionHeader("Albums")
-                            Shelf(items: results.collections) { collection in
+                            Shelf(items: albums) { collection in
                                 CollectionCard(
                                     title: collection.title,
                                     subtitle: [collection.subtitle, collection.year.map(String.init)].compactMap { $0 }.joined(separator: " · "),

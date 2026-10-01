@@ -62,6 +62,14 @@ struct MainUI: View {
                 .presentationDetents([.medium, .large])
                 .presentationBackground(.regularMaterial)
         }
+        .sheet(isPresented: Binding(get: { ui.blockArtist != nil }, set: { if !$0 { ui.blockArtist = nil } })) {
+            if let track = ui.blockArtist {
+                BlockArtistSheet(track: track) { ui.blockArtist = nil }
+                    .environment(\.kultr, theme)
+                    .presentationDetents([.medium])
+                    .presentationBackground(.regularMaterial)
+            }
+        }
     }
 }
 
@@ -494,6 +502,9 @@ private struct RouteView: View {
         case .playlist(let id): PlaylistScreen(id: id)
         case .servers: ServersScreen()
         case .server(let id): ServerEditorScreen(id: id)
+        case .navidrome: NavidromeScreen()
+        case .blockedArtists: BlockedArtistsScreen()
+        case .recommendations: RecommendationSettings()
         }
     }
 }

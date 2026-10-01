@@ -11,8 +11,10 @@ struct HomeScreen: View {
         let graph = AppGraph.shared
         let library = graph.library
         let actions = graph.actions
-        let history = library.history(20)
-        let favorites = library.favorites
+        let blocks = graph.taste.blocks
+        let history = blocks.tracks(library.history(20))
+        let favorites = blocks.tracks(library.favorites)
+        let topSongs = blocks.tracks(charts)
         let playlists = library.playlistsByDate
         let playing = graph.player.state.current?.id
         ScrollView {
@@ -26,6 +28,10 @@ struct HomeScreen: View {
                 }
                 .padding(.vertical, 8)
 
+                if graph.settings.settings.suggestions {
+                    ForYouSection()
+                        .padding(.top, 4)
+                }
                 if !history.isEmpty {
                     SectionHeader("Jump back in", icon: "clock.arrow.circlepath")
                         .padding(.top, 8)
@@ -55,17 +61,17 @@ struct HomeScreen: View {
                         ) { actions.openPlaylist(playlist.id) }
                     }
                 }
-                if !charts.isEmpty {
+                if !topSongs.isEmpty {
                     SectionHeader("Top songs right now", icon: "chart.line.uptrend.xyaxis") {
-                        seeAll("Play all") { actions.play(charts) }
+                        seeAll("Play all") { actions.play(topSongs) }
                     }
                     .padding(.top, 8)
-                    let top = Array(charts.prefix(15))
+                    let top = Array(topSongs.prefix(15))
                     ForEach(Array(top.enumerated()), id: \.offset) { index, track in
-                        TrackRow(track: track, number: index + 1, isCurrent: track.id == playing) { actions.play(charts, index) }
+                        TrackRow(track: track, number: index + 1, isCurrent: track.id == playing) { actions.play(topSongs, index) }
                     }
                 }
-                if history.isEmpty && favorites.isEmpty {
+                if history.isEmpty && favorites.isEmpty && !graph.settings.settings.suggestions {
                     Welcome()
                 }
             }

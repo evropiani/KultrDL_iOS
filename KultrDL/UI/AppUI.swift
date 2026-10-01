@@ -53,6 +53,9 @@ enum Route: Hashable {
     case servers
     /** A saved server's editor, or "new" to add one. */
     case server(String)
+    case navidrome
+    case blockedArtists
+    case recommendations
 }
 
 /** Navigation and the dialogs any screen can ask for; the root view shows them. */
@@ -70,6 +73,8 @@ final class AppUI {
     var addToPlaylist: [Track]?
     var downloadAs: [Track]?
     var sendTo: [Track]?
+    /** "Block artist…" for this track: who to block among its credits. */
+    var blockArtist: Track?
     /** Albums and playlists opened from search, by id, for their pages. */
     @ObservationIgnored var collections: [String: TrackCollection] = [:]
 
@@ -181,25 +186,38 @@ final class AppActions {
 
     // ------------------------------------------------------------ playing --
 
+    /** Songs by blocked artists (or with them on) never reach the player. */
+    private func allowed(_ tracks: [Track]) -> [Track] {
+        let kept = graph.taste.blocks.tracks(tracks)
+        if kept.isEmpty && !tracks.isEmpty { messages.show("All of these are by artists you blocked.") }
+        return kept
+    }
+
     func play(_ tracks: [Track], _ index: Int = 0) {
-        graph.player.play(tracks, startIndex: index)
+        let start = tracks.indices.contains(index) ? tracks[index].id : nil
+        let kept = allowed(tracks)
+        guard !kept.isEmpty else { return }
+        graph.player.play(kept, startIndex: start.flatMap { id in kept.firstIndex { $0.id == id } } ?? 0)
     }
 
     func shuffle(_ tracks: [Track]) {
-        guard !tracks.isEmpty else { return }
-        graph.player.play(tracks, shuffle: true)
+        let kept = allowed(tracks)
+        guard !kept.isEmpty else { return }
+        graph.player.play(kept, shuffle: true)
     }
 
     func playNext(_ tracks: [Track]) {
-        guard !tracks.isEmpty else { return }
-        graph.player.playNext(tracks)
-        messages.show(tracks.count == 1 ? "“\(tracks[0].title)” plays next" : "\(tracks.count) tracks play next")
+        let kept = allowed(tracks)
+        guard !kept.isEmpty else { return }
+        graph.player.playNext(kept)
+        messages.show(kept.count == 1 ? "“\(kept[0].title)” plays next" : "\(kept.count) tracks play next")
     }
 
     func enqueue(_ tracks: [Track]) {
-        guard !tracks.isEmpty else { return }
-        graph.player.enqueue(tracks)
-        messages.show(tracks.count == 1 ? "Added “\(tracks[0].title)” to the queue" : "Added \(tracks.count) tracks to the queue")
+        let kept = allowed(tracks)
+        guard !kept.isEmpty else { return }
+        graph.player.enqueue(kept)
+        messages.show(kept.count == 1 ? "Added “\(kept[0].title)” to the queue" : "Added \(kept.count) tracks to the queue")
     }
 
     // ------------------------------------------------------------ library --
@@ -253,6 +271,13 @@ final class AppActions {
     }
 
     func download(_ tracks: [Track], preset: DownloadPreset, destination: Destination?) {
+        // Music-library songs that are files on the phone already have nothing to download.
+        let onPhone: (Track) -> Bool = { $0.source == .phone && $0.streamUrl != nil }
+        let tracks = graph.taste.blocks.tracks(tracks).filter { !onPhone($0) }
+        guard !tracks.isEmpty else {
+            messages.show("That's already on this phone, or by an artist you blocked.")
+            return
+        }
         let server = destination.flatMap { graph.servers.get($0.serverId) }
         graph.downloads.enqueue(tracks, preset: preset, destination: destination)
         let what = tracks.count == 1 ? "“\(tracks[0].title)”" : "\(tracks.count) tracks"
@@ -279,6 +304,66 @@ final class AppActions {
         } else {
             messages.show("Sending \(Format.count(count, "track")) to \(name)")
         }
+    }
+
+    /** Download straight into Navidrome's music folder (set in Settings → Recommendations → Navidrome). */
+    func downloadToNavidrome(_ tracks: [Track]) {
+        guard let target = graph.navidrome.destination(graph.servers) else {
+            messages.show("Choose Navidrome's music folder first.")
+            navigate(.navidrome)
+            return
+        }
+        download(tracks, preset: graph.settings.settings.download, destination: target)
+    }
+
+    var canDownloadToNavidrome: Bool { graph.navidrome.destination(graph.servers) != nil }
+
+    // -------------------------------------------------------------- taste --
+
+    /** "Block artist…": straight away for one artist, otherwise asks which of the credited ones. */
+    func blockArtist(_ track: Track) {
+        let people = Credits.people(track.artist, track.title)
+        if people.count <= 1 {
+            block(people.isEmpty ? [track.artist] : people)
+        } else {
+            ui.blockArtist = track
+        }
+    }
+
+    func block(_ names: [String]) {
+        guard !names.isEmpty else { return }
+        Haptics.tap()
+        graph.taste.block(names)
+        let who = names.count == 1 ? names[0] : names.joined(separator: ", ")
+        messages.success("Blocked \(who). Their songs, and songs they're on, are hidden and skipped.")
+    }
+
+    func unblock(_ name: String) {
+        graph.taste.unblock(name)
+        messages.show("Unblocked \(name)")
+    }
+
+    /** "More like this" on a suggestion. */
+    func like(_ key: String, artist: String, label: String) {
+        graph.taste.like(key, artist: artist, label: label)
+        messages.success("More like \(artist) from now on")
+    }
+
+    /** "Not interested": hidden now, and a little less of this artist. */
+    func dismiss(_ key: String, artist: String, label: String) {
+        graph.taste.dismiss(key, artist: artist, label: label)
+        messages.show("Got it — you won't see “\(label)” again")
+    }
+
+    /** Save a mix as a playlist that gets the mix's new songs each day. */
+    func followMix(_ mix: Mix) {
+        let source = Recommender.mixUrl + mix.id
+        if let existing = graph.library.playlist(source: source) {
+            messages.show("“\(existing.name)” is already in your playlists, updated daily")
+            return
+        }
+        graph.library.createPlaylist(mix.title, mix.tracks, sourceUrl: source, artworkUrl: mix.artworkUrls.first)
+        messages.success("“\(mix.title)” saved to your playlists; it gets new songs every day")
     }
 
     func removeDownload(_ track: Track) {

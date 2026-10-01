@@ -55,6 +55,7 @@ struct SettingsScreen: View {
                 link("Servers", "server.rack", .indigo) { ServersScreen() }
             }
             Section {
+                link("Recommendations", "sparkles", .orange) { RecommendationSettings() }
                 link("Search and sources", "magnifyingglass", .blue) { SourceSettings() }
                 link("Playback", "play.fill", .red) { PlaybackSettings() }
                 link("Appearance", "paintpalette.fill", .pink) { AppearanceSettings() }
@@ -108,7 +109,7 @@ extension View {
 }
 
 /** A switch with a line of explanation under its label. */
-private struct SettingToggle: View {
+struct SettingToggle: View {
     let label: String
     let hint: String?
     let isOn: Binding<Bool>
@@ -457,7 +458,10 @@ private struct BackupSettings: View {
                 Button("Back up library") {
                     var settings = graph.settings.settings
                     settings.spotifyClientSecret = ""
-                    let file = graph.library.snapshot(settings: settings, servers: graph.servers.servers)
+                    settings.lastFmApiKey = ""
+                    var file = graph.library.snapshot(settings: settings, servers: graph.servers.servers)
+                    file.taste = graph.taste.data
+                    file.navidrome = graph.navidrome.config.configured ? graph.navidrome.config : nil
                     do {
                         document = BackupDocument(data: try file.encode())
                         exporting = true
@@ -467,7 +471,7 @@ private struct BackupSettings: View {
                 }
                 Button("Restore a backup") { importing = true }
             } footer: {
-                Text("Favourites, saved tracks, playlists, history, settings and servers (without passwords), as one file — the same format as KultrDL for Android. Restoring adds to what's here; nothing is removed.")
+                Text("Favourites, saved tracks, playlists, history, settings, servers and Navidrome (without passwords), blocked artists and your answers to suggestions, as one file — the same format as KultrDL for Android. Restoring adds to what's here; nothing is removed.")
             }
             Section {
                 Button("Clear listening history", role: .destructive) { confirmHistory = true }
@@ -499,8 +503,14 @@ private struct BackupSettings: View {
                 let file = try BackupFile.decode(try Data(contentsOf: url))
                 let count = graph.library.restore(file)
                 let servers = graph.servers.restore(file.servers)
+                if let taste = file.taste { graph.taste.restore(taste) }
+                if var navidrome = file.navidrome, !graph.navidrome.config.configured, navidrome.configured {
+                    navidrome.lastSyncAt = 0
+                    graph.navidrome.update { $0 = navidrome }
+                }
                 if var restored = file.settings {
                     restored.spotifyClientSecret = graph.settings.settings.spotifyClientSecret
+                    restored.lastFmApiKey = graph.settings.settings.lastFmApiKey
                     graph.settings.replace(restored)
                 }
                 graph.messages.success(
@@ -512,7 +522,10 @@ private struct BackupSettings: View {
             }
         }
         .confirmationDialog("Clear listening history?", isPresented: $confirmHistory, titleVisibility: .visible) {
-            Button("Clear", role: .destructive) { graph.library.clearHistory() }
+            Button("Clear", role: .destructive) {
+                graph.library.clearHistory()
+                Task { await graph.listening.clearPlays() }
+            }
         } message: {
             Text("Play counts and “Jump back in” start again. Favourites, playlists and downloads stay.")
         }

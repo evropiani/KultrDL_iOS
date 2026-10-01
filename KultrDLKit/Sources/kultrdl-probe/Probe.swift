@@ -56,6 +56,8 @@ struct Probe {
         if wanted("links") { await links(catalog) }
         if wanted("youtube") { await youTube(youtube) }
         if wanted("streams") { await streams(catalog, finder) }
+        if wanted("discover") { await discover(catalog, http) }
+        if wanted("navidrome") { await navidrome(http) }
         if wanted("remote") { await remote() }
 
         print("\n\(passed) passed, \(failed.count) failed")
@@ -172,6 +174,145 @@ struct Probe {
             let s = try await youtube.streams(id)
             return "served by \(s.client.key)"
         }
+    }
+
+    // ---------------------------------------------------- recommendations --
+
+    static func discover(_ catalog: Catalog, _ http: Http) async {
+        section("Recommendations")
+        var artist: ArtistRef?
+        await check("Deezer artist") {
+            guard let found = try await catalog.deezer.searchArtists("Daft Punk").max(by: { $0.fans < $1.fans }) else { throw KultrError("not found") }
+            artist = found
+            return "\(found.name) \(found.id), \(found.fans) fans"
+        }
+        if let artist, let id = artist.id.split(separator: ":").last.map(String.init) {
+            await check("Deezer discography") {
+                let albums = try await catalog.deezer.artistAlbums(id, artistName: artist.name)
+                guard !albums.isEmpty, albums.allSatisfy({ $0.releaseDate != nil }) else { throw KultrError("\(albums.count) albums, some without dates") }
+                return "\(albums.count) releases; " + albums.prefix(3).map { "\($0.title) (\($0.recordType ?? "?"), \($0.releaseDate ?? "?"), \($0.genre ?? "?"))" }.joined(separator: ", ")
+            }
+            await check("Deezer popular albums") {
+                let albums = try await catalog.deezer.popularAlbums(id, artistName: artist.name)
+                guard !albums.isEmpty else { throw KultrError("none") }
+                return albums.prefix(4).map(\.title).joined(separator: ", ")
+            }
+            await check("Deezer related artists") {
+                let related = try await catalog.deezer.related(id)
+                guard !related.isEmpty else { throw KultrError("none") }
+                return related.prefix(6).map(\.name).joined(separator: ", ")
+            }
+            await check("Deezer top songs") {
+                let top = try await catalog.deezer.top(id, limit: 5)
+                guard !top.isEmpty else { throw KultrError("none") }
+                return top.map(\.title).joined(separator: ", ")
+            }
+        }
+        await check("Apple Music discography") {
+            guard let found = try await catalog.apple.searchArtists("Daft Punk").first else { throw KultrError("artist not found") }
+            let albums = try await catalog.apple.artistAlbums(String(found.id.dropFirst("apple:".count)))
+            guard !albums.isEmpty else { throw KultrError("no albums") }
+            return "\(found.id): " + albums.prefix(3).map { "\($0.title) (\($0.recordType ?? "?"), \($0.releaseDate ?? "?"))" }.joined(separator: ", ")
+        }
+        await check("YouTube Music radio") {
+            let radio = try await catalog.youTubeMusic.radio("u7K72X4eo_s")
+            guard !radio.isEmpty else { throw KultrError("empty") }
+            return "\(radio.count) songs; " + radio.prefix(4).map { "\($0.artist) – \($0.title)" }.joined(separator: ", ")
+        }
+        let listenBrainz = ListenBrainz(http: http)
+        await check("ListenBrainz top artists") {
+            let top = try await listenBrainz.topArtists("rob")
+            return top.isEmpty ? "no statistics yet" : top.prefix(5).map { "\($0.name) \($0.plays)" }.joined(separator: ", ")
+        }
+        await check("ListenBrainz weekly playlists") {
+            let playlists = try await listenBrainz.createdFor("rob")
+            guard let first = playlists.first else { return "none" }
+            let tracks = try await listenBrainz.playlist(first.id)
+            return "\(playlists.count) playlists; \(first.title): \(tracks.count) songs, kind \(ListenBrainz.kind(first.title) ?? "-")"
+        }
+        await check("a whole For you page") {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let day: Int64 = 86_400_000
+            let played = [("Daft Punk", "One More Time"), ("Massive Attack", "Teardrop"), ("Air", "Sexy Boy"), ("Portishead", "Glory Box")]
+                .enumerated()
+                .map { i, p in Played(Track(id: "test:\(i)", source: .web, title: p.1, artist: p.0, streamUrl: "x"), plays: 10 - i, lastPlayedAt: now - Int64(i) * day) }
+            let owned = Owned.Builder()
+            for p in played { owned.add(p.track.artist, p.track.title) }
+            let discovery = Discovery(directory: CatalogDirectory(deezer: catalog.deezer, apple: catalog.apple), radio: { track in
+                let found = try await catalog.youTubeMusic.searchSongs("\(track.artist) \(track.title)")
+                guard let id = YouTubeMusic.videoId(found.first?.streamUrl) else { return [] }
+                return try await catalog.youTubeMusic.radio(id)
+            })
+            let start = Date()
+            let feed = await discovery.build(Discovery.Input(
+                profile: Taste.build(played.map { Signal($0.track.artist, $0.track.title, Double($0.plays), $0.lastPlayedAt) }, now: now),
+                owned: owned.build(),
+                rules: Rules(),
+                familiar: played,
+                releaseWindowDays: 120,
+                now: now
+            ))
+            guard !feed.mixes.isEmpty, !feed.albums.isEmpty, !feed.offline else {
+                throw KultrError("\(feed.mixes.count) mixes, \(feed.albums.count) albums, offline \(feed.offline)")
+            }
+            return String(format: "%.0fs: ", Date().timeIntervalSince(start)) + "\(feed.releases.count) releases, mixes "
+                + feed.mixes.map { "\($0.title) (\($0.tracks.count))" }.joined(separator: ", ")
+                + "; albums " + feed.albums.prefix(3).map { "\($0.artist) – \($0.collection.title)" }.joined(separator: ", ")
+        }
+    }
+
+    // ---------------------------------------------------------- Navidrome --
+
+    /** Against the throwaway Navidrome CI starts (.github/scripts/navidrome.sh), when there is one. */
+    static func navidrome(_ http: Http) async {
+        section("Navidrome")
+        guard let address = ProcessInfo.processInfo.environment["KULTRDL_NAVIDROME"], !address.isEmpty else {
+            print("  skip  no KULTRDL_NAVIDROME")
+            return
+        }
+        let client = Subsonic(http: http, server: .init(url: address + "/app/", username: "admin", password: "kultr-pass"))
+        await check("sign in") { "\(try await client.ping())" }
+        await check("wrong password is refused") {
+            let wrong = Subsonic(http: http, server: .init(url: address, username: "admin", password: "nope"))
+            do {
+                _ = try await wrong.ping()
+            } catch let error as Subsonic.SubsonicError {
+                return error.message
+            }
+            throw KultrError("signed in with the wrong password")
+        }
+        var songs: [Subsonic.Song] = []
+        await check("every song") {
+            songs = try await client.songs(pageSize: 2)
+            guard songs.count >= 5 else { throw KultrError("\(songs.count) songs") }
+            return songs.map { "\($0.artist) – \($0.title) (\($0.album ?? "?"), \($0.genre ?? "?"))" }.joined(separator: ", ")
+        }
+        if let song = songs.first {
+            await check("stream a song") {
+                let data = try await http.getData(client.authenticate(client.streamUrl(song.id)))
+                guard data.count > 10_000 else { throw KultrError("\(data.count) bytes") }
+                return "\(data.count / 1024) KB"
+            }
+            await check("download the original") {
+                let url = client.authenticate(client.streamUrl(song.id).replacingOccurrences(of: "/rest/stream?", with: "/rest/download?"))
+                let data = try await http.getData(url)
+                guard data.count > 10_000 else { throw KultrError("\(data.count) bytes") }
+                return "\(data.count / 1024) KB, starts \(data.prefix(8).map { String(format: "%02x", $0) }.joined())"
+            }
+            await check("as a track") {
+                let track = client.toTrack(song)
+                guard track.source == .navidrome, client.owns(track.streamUrl ?? "") else { throw KultrError("\(track)") }
+                return "\(track.id), plays from \(track.streamUrl ?? "-")"
+            }
+            if let artistId = song.artistId {
+                await check("similar artists (needs Last.fm on the server)") {
+                    let names = try await client.similarArtists(artistId)
+                    return names.isEmpty ? "none (no Last.fm key on the server)" : names.prefix(5).joined(separator: ", ")
+                }
+            }
+        }
+        await check("playlists") { "\(try await client.playlists().count) playlists" }
+        await check("rescan") { try await client.startScan() ? "scanning" : "asked; not scanning" }
     }
 
     // ----------------------------------------------- download + convert --

@@ -37,6 +37,26 @@ enum ScreenshotDriver {
         return tracks
     }
 
+    /** Favourites from a few artists, then a real "For you" from Deezer, Apple Music and YouTube Music. */
+    private static func suggestions(_ graph: AppGraph) async -> String {
+        _ = await seed(graph)
+        if graph.library.favorites.count < 9 {
+            for query in ["Massive Attack Teardrop", "Air Sexy Boy", "Justice D.A.N.C.E."] {
+                guard let found = try? await graph.catalog.search(.youtubeMusic, query) else { continue }
+                let tracks = Array(found.tracks.prefix(3))
+                graph.library.setFavorite(tracks, true)
+                for track in tracks { graph.library.markPlayed(track.id) }
+            }
+        }
+        do {
+            let feed = try await graph.recommender.refresh()
+            return "feed: \(feed.releases.count) releases, \(feed.mixes.count) mixes (\(feed.mixes.map { "\($0.title) \($0.tracks.count)" }.joined(separator: ", "))), "
+                + "\(feed.albums.count) albums, \(feed.missing.count) missing, \(feed.rediscover.count) rediscover, offline \(feed.offline), seeds \(feed.seeds.prefix(6).joined(separator: ", "))"
+        } catch {
+            return "feed failed: \(describe(error))"
+        }
+    }
+
     private static func open(_ screen: String, _ graph: AppGraph) async -> String {
         let actions = graph.actions
         switch screen {
@@ -87,6 +107,20 @@ enum ScreenshotDriver {
             let job = graph.downloads.job(track.id)
             let stored = graph.library.stored(track.id)
             return "download \(job?.state.rawValue ?? "none"): \(job?.message ?? "") file=\(stored?.localPath ?? "-") size=\(stored?.localSize ?? 0)"
+        case "foryou":
+            actions.selectTab(.home)
+            return await suggestions(graph)
+        case "mix":
+            let note = await suggestions(graph)
+            actions.selectTab(.home)
+            if let mix = graph.recommender.feed?.mixes.first(where: { $0.id.hasPrefix("daily-") }) ?? graph.recommender.feed?.mixes.first {
+                actions.openCollection(mix.asCollection())
+            }
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            return note
+        case "recommendations":
+            actions.selectTab(.settings)
+            graph.ui.setPath([.recommendations], for: .settings)
         case "settings":
             actions.selectTab(.settings)
         case "servers":

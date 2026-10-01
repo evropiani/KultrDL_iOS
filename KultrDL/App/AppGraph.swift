@@ -14,6 +14,9 @@ final class AppGraph {
     let network = NetworkMonitor()
     let library = LibraryStore()
     let servers = ServerStore()
+    let taste = TasteStore()
+    let navidrome = NavidromeStore()
+    let listening = ListeningStore()
     let ui = AppUI()
     let http = Http()
     let catalog: Catalog
@@ -24,6 +27,7 @@ final class AppGraph {
     private(set) lazy var downloads = Downloads(graph: self)
     private(set) lazy var player = PlayerController(graph: self)
     private(set) lazy var actions = AppActions(graph: self)
+    private(set) lazy var recommender = Recommender(graph: self)
 
     private init() {
         let shared = settings.shared
@@ -43,13 +47,20 @@ final class AppGraph {
         )
         engine = Engine(http: http)
         finder = StreamFinder(catalog: catalog, youtube: engine.youtube)
-        _ = (resolver, downloads, player, actions)
+        _ = (resolver, downloads, player, actions, recommender)
+        // Navidrome covers are stored without the login; it is added to each request.
+        let navidromeClient = navidrome.shared
+        ImageLoader.shared.sign = { url in
+            guard let client = navidromeClient.value, client.owns(url.absoluteString) else { return url }
+            return URL(string: client.authenticate(url.absoluteString)) ?? url
+        }
 
         network.onChange = { [unowned self] in self.downloads.start() }
         library.checkFiles()
         player.start()
         downloads.recover()
         updateEngineIfDue()
+        recommender.schedule()
     }
 
     /** Looks for newer YouTube clients once a day, when that is switched on. */

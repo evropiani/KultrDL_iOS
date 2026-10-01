@@ -10,12 +10,15 @@
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>app.kultr.dl.downloads</string>
+		<string>app.kultr.dl.discover</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>KultrDL suggests music from what you have and play in the Music app, and plays the songs stored on this iPhone in your mixes.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>KultrDL sends downloads to your FTP or SFTP server, which may be on your home network.</string>
 	<key>UILaunchScreen</key>
