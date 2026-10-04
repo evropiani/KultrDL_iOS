@@ -135,7 +135,7 @@ enum ScreenshotDriver {
                 let kept = await store.signIn(graph.http, url: address, username: "listener", password: "listen-pass")
                 note += "; kept \(kept ?? "none"); " + (await read())
             }
-            note += "; isAdmin \(store.config.isAdmin.map { "\($0)" } ?? "nil"), hasAdmin \(store.hasAdmin), rescans as \(store.scanClient(graph.http)?.server.username ?? "-")"
+            note += "; isAdmin \(store.config.isAdmin.map { "\($0)" } ?? "nil"), hasAdmin \(store.hasAdmin), rescans as \(store.scanClient(graph.http)?.server.username ?? "-"), keychain \(store.password.isEmpty ? "empty" : "ok")"
             actions.selectTab(.settings)
             graph.ui.setPath([.recommendations, .navidrome], for: .settings)
             return note

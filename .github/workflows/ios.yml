@@ -70,15 +70,24 @@ jobs:
         if: github.ref != 'refs/heads/main' && hashFiles('KultrDL.xcodeproj/project.pbxproj') != ''
         run: |
           set -o pipefail
-          xcodebuild build \
-            -project KultrDL.xcodeproj \
-            -scheme KultrDL \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            > build.log 2>&1 || true
+          # Signed to run locally, so the Keychain works in the simulator (the
+          # Navidrome screenshots sign in); unsigned if that can't be done.
+          sim() {
+            xcodebuild build \
+              -project KultrDL.xcodeproj \
+              -scheme KultrDL \
+              -configuration Debug \
+              -sdk iphonesimulator \
+              -destination 'generic/platform=iOS Simulator' \
+              -derivedDataPath build \
+              "$@" > build.log 2>&1 || true
+          }
+          sim CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=
+          if ! grep -q "BUILD SUCCEEDED" build.log; then
+            echo "Signed simulator build failed; building unsigned"
+            grep -E "error:" build.log | head -5 || true
+            sim CODE_SIGNING_ALLOWED=NO
+          fi
           grep -E "error:" build.log | sed -E 's#^.*/KultrDL_iOS/##' | sort -u | head -150 || true
           grep -E "BUILD (SUCCEEDED|FAILED)" build.log || tail -30 build.log
           grep -q "BUILD SUCCEEDED" build.log
