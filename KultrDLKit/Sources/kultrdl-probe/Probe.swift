@@ -313,6 +313,28 @@ struct Probe {
         }
         await check("playlists") { "\(try await client.playlists().count) playlists" }
         await check("rescan") { try await client.startScan() ? "scanning" : "asked; not scanning" }
+
+        // Plays, stars and ratings are per account; only admins may start scans.
+        let listener = Subsonic(http: http, server: .init(url: address, username: "listener", password: "listen-pass"))
+        await check("the admin account says so") {
+            guard try await client.isAdmin() == true else { throw KultrError("admin isn't an admin") }
+            return "admin is an admin"
+        }
+        await check("the listening account's own plays") {
+            guard try await listener.isAdmin() == false else { throw KultrError("listener counts as an admin") }
+            let mine = try await listener.songs().filter { $0.playCount > 0 }.count
+            let admins = try await client.songs().filter { $0.playCount > 0 }.count
+            guard mine > 0 else { throw KultrError("\(mine) played by listener, \(admins) by admin") }
+            return "not an admin; \(mine) songs played by listener, \(admins) by admin"
+        }
+        await check("a rescan as the listening account is refused") {
+            do {
+                _ = try await listener.startScan()
+            } catch let error as Subsonic.SubsonicError where error.code == 50 {
+                return error.message
+            }
+            throw KultrError("started a scan without being an admin")
+        }
     }
 
     // ----------------------------------------------- download + convert --

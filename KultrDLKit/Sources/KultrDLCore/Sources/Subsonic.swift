@@ -119,6 +119,14 @@ public final class Subsonic: @unchecked Sendable {
             .array.compactMap { $0["name"].string }
     }
 
+    /**
+     * Whether the signed-in account is an admin, or nil when the server doesn't say.
+     * Plays, stars and ratings belong to each account; only admins may start scans.
+     */
+    public func isAdmin() async throws -> Bool? {
+        try await call("getUser", ("username", server.username))["user"]["adminRole"].bool
+    }
+
     /** Ask the server to look for new files now (only admins may). */
     public func startScan() async throws -> Bool {
         try await call("startScan")["scanStatus"]?["scanning"].string == "true"

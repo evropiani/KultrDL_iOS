@@ -340,7 +340,7 @@ final class Recommender {
         saveCache()
     }
 
-    /** Reads every song on the user's Navidrome, with play counts, stars and ratings. */
+    /** Reads every song on the user's Navidrome, with the signed-in account's play counts, stars and ratings. */
     @discardableResult
     func syncNavidrome() async throws -> String {
         guard let client = graph.navidrome.client(graph.http) else {
@@ -348,6 +348,7 @@ final class Recommender {
         }
         do {
             let info = try await client.ping()
+            let admin: Bool? = try? await client.isAdmin()
             let list = try await client.songs()
             let songs = list.map { song in
                 OwnedSong(
@@ -360,11 +361,13 @@ final class Recommender {
                 )
             }
             await graph.listening.replace(.navidrome, songs)
-            let note = "\(Format.count(songs.count, "song")) from \(info)"
+            let played = list.filter { $0.playCount > 0 }.count
+            let note = "\(Format.count(songs.count, "song")) (\(played) played by \(client.server.username)) from \(info)"
             graph.navidrome.update {
                 $0.lastSyncAt = nowMs()
                 $0.lastSync = note
                 $0.songCount = songs.count
+                if $0.username == client.server.username { $0.isAdmin = admin }
             }
             cache.navidromeSongs = songs.count
             navidromeSongs = songs.count
@@ -389,12 +392,14 @@ final class Recommender {
         let c = graph.navidrome.config
         guard let target = c.destination, c.rescan,
               destinations.contains(where: { $0.serverId == target.serverId && $0.folder == target.folder }),
-              let client = graph.navidrome.client(graph.http)
+              let client = graph.navidrome.scanClient(graph.http)
         else { return }
         let note: String
         do {
             _ = try await client.startScan()
             note = "Rescan started after downloads"
+        } catch let error as Subsonic.SubsonicError where error.code == 50 {
+            note = "Couldn't start a rescan: only admins can, and \(client.server.username) isn't one. Add an admin login for rescans"
         } catch {
             note = "Couldn't start a rescan: \(describe(error))"
         }

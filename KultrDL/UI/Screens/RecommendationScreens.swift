@@ -359,9 +359,10 @@ struct FlowLayout: Layout {
 // ------------------------------------------------------------ Navidrome --
 
 /**
- * The user's Navidrome: sign in, let its history (plays, stars, ratings)
- * and collection feed the recommendations, and choose the SFTP/FTP folder
- * it reads music from, for "Download to Navidrome".
+ * The user's Navidrome: sign in with the account they listen with, let its
+ * history (plays, stars, ratings) and collection feed the recommendations,
+ * and choose the SFTP/FTP folder it reads music from, for "Download to
+ * Navidrome", with an admin login for rescans when that account isn't one.
  */
 struct NavidromeScreen: View {
     @Environment(\.kultr) private var theme
@@ -372,6 +373,9 @@ struct NavidromeScreen: View {
     @State private var testing = false
     @State private var syncing = false
     @State private var report: String?
+    @State private var adminName = ""
+    @State private var adminPassword = ""
+    @State private var checkingAdmin = false
 
     var body: some View {
         let graph = AppGraph.shared
@@ -394,7 +398,7 @@ struct NavidromeScreen: View {
             } header: {
                 Text("Your server")
             } footer: {
-                Text("Connect your Navidrome (or any Subsonic server). KultrDL reads what you own and what you play there — play counts, stars and ratings — to suggest music, never suggests what you already have, and plays your songs from it in mixes. It never changes anything on the server. Use a local Navidrome account (LDAP accounts can't sign in from apps); the password is kept in the iOS Keychain.")
+                Text("Connect your Navidrome (or any Subsonic server). KultrDL reads what you own and what you play there — play counts, stars and ratings — to suggest music, never suggests what you already have, and plays your songs from it in mixes. It never changes anything on the server.\n\nSign in with the account you listen with, here and in other apps (like Kultr): Navidrome keeps plays, stars and ratings per account. Use a local Navidrome account (LDAP accounts can't sign in from apps); passwords are kept in the iOS Keychain.")
             }
             Section {
                 Button {
@@ -408,7 +412,12 @@ struct NavidromeScreen: View {
                 }
                 .disabled(!valid || testing)
                 Button("Save") { save() }
-                    .disabled(!valid || !changed)
+                    .disabled(!valid || !changed || syncing)
+            } footer: {
+                if config.configured, config.isAdmin == true, !graph.navidrome.hasAdmin {
+                    Text("\(config.username) is an admin account. If you listen with a different account (in Kultr or another app), sign in with that one above, so suggestions learn from your plays. KultrDL then keeps \(config.username) for rescans.")
+                        .foregroundStyle(theme.colors.accent)
+                }
             }
 
             if config.configured {
@@ -416,7 +425,7 @@ struct NavidromeScreen: View {
                     SettingToggle(
                         "Use my Navidrome for suggestions",
                         isOn: Binding(get: { config.useHistory }, set: { on in graph.navidrome.update { $0.useHistory = on } }),
-                        hint: "Its plays, stars and ratings tell KultrDL what you like; what's on it is never suggested."
+                        hint: "\(config.username)'s plays, stars and ratings tell KultrDL what you like; what's on it is never suggested."
                     )
                     Button {
                         sync()
@@ -444,8 +453,20 @@ struct NavidromeScreen: View {
                     SettingToggle(
                         "Rescan after downloads",
                         isOn: Binding(get: { config.rescan }, set: { on in graph.navidrome.update { $0.rescan = on } }),
-                        hint: "Ask Navidrome to look for new files as soon as downloads arrive (needs an admin account)."
+                        hint: "Ask Navidrome to look for new files as soon as downloads arrive."
                     )
+                    if config.rescan && graph.navidrome.hasAdmin {
+                        HStack(spacing: 12) {
+                            Text("Rescans sign in as \(config.adminUsername); everything else as \(config.username).")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Remove") { graph.navidrome.forgetAdmin() }
+                                .buttonStyle(.borderless)
+                        }
+                    } else if config.rescan && config.isAdmin != true {
+                        adminLogin(graph)
+                    }
                 } header: {
                     Text("Download to Navidrome")
                 } footer: {
@@ -474,6 +495,10 @@ struct NavidromeScreen: View {
             username = config.username
             password = graph.navidrome.password
         }
+        // Saved before KultrDL asked: find out whether the account is an admin, for the hint.
+        .task(id: "\(config.url)|\(config.username)|\(config.isAdmin == nil)") {
+            await learnWhetherAdmin()
+        }
         .alert("Test connection", isPresented: Binding(get: { report != nil }, set: { if !$0 { report = nil } })) {
             Button("OK") { report = nil }
         } message: {
@@ -481,16 +506,51 @@ struct NavidromeScreen: View {
         }
     }
 
+    /** Only admins can start a scan: a login used for that and nothing else. */
+    @ViewBuilder
+    private func adminLogin(_ graph: AppGraph) -> some View {
+        let name = graph.navidrome.config.username
+        Text("Only admins can start a scan. If \(name) isn't one, add an admin login, used for rescans and nothing else. Without one, Navidrome still finds new files on its own schedule.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        TextField("Admin username", text: $adminName)
+            .textContentType(.username)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+        SecureField("Admin password", text: $adminPassword)
+            .textContentType(.password)
+        Button(checkingAdmin ? "Checking…" : "Use for rescans") { keepAdmin() }
+            .disabled(adminName.trimmingCharacters(in: .whitespaces).isEmpty || adminPassword.isEmpty || checkingAdmin)
+    }
+
+    private func learnWhetherAdmin() async {
+        let store = AppGraph.shared.navidrome
+        let config = store.config
+        guard config.configured, config.isAdmin == nil, let client = store.client(AppGraph.shared.http) else { return }
+        guard let admin = try? await client.isAdmin() else { return }
+        store.update { c in
+            if c.username == config.username { c.isAdmin = admin }
+        }
+    }
+
     private func test() {
         let graph = AppGraph.shared
         testing = true
+        let name = username.trimmingCharacters(in: .whitespaces)
         let client = NavidromeStore.clientFor(graph.http, url: url, username: username, password: password)
         Task { @MainActor in
             defer { testing = false }
             do {
                 let info = try await client.ping()
-                report = "Signed in to \(info) at \(Subsonic.baseUrl(url))."
-                    + (info.openSubsonic ? "" : "\n\nIt doesn't say when songs were last played (that needs OpenSubsonic), so older plays count as much as recent ones.")
+                let admin: Bool? = try? await client.isAdmin()
+                var text = "Signed in to \(info) at \(Subsonic.baseUrl(url)) as \(name)."
+                if admin == true {
+                    text += "\n\n\(name) is an admin. If you listen with another account, sign in with that one: suggestions learn from its plays. KultrDL keeps this admin login for rescans."
+                }
+                if !info.openSubsonic {
+                    text += "\n\nIt doesn't say when songs were last played (that needs OpenSubsonic), so older plays count as much as recent ones."
+                }
+                report = text
             } catch {
                 report = "Couldn't connect: \(describe(error))"
             }
@@ -499,22 +559,53 @@ struct NavidromeScreen: View {
 
     private func save() {
         let graph = AppGraph.shared
-        graph.navidrome.setLogin(url: url, username: username, password: password)
-        url = graph.navidrome.config.url
-        graph.messages.success("Navidrome saved; reading your music in the background")
-        sync()
+        let (newUrl, newUser, newPassword) = (url, username.trimmingCharacters(in: .whitespaces), password)
+        syncing = true
+        Task { @MainActor in
+            let kept = await graph.navidrome.signIn(graph.http, url: newUrl, username: newUser, password: newPassword)
+            url = graph.navidrome.config.url
+            if let kept {
+                graph.messages.show("Signed in as \(newUser). KultrDL keeps \(kept) for rescans after downloads.", .success, long: true)
+            } else {
+                graph.messages.success("Navidrome saved; reading your music in the background")
+            }
+            await read()
+        }
     }
 
     private func sync() {
-        let graph = AppGraph.shared
         syncing = true
+        Task { @MainActor in await read() }
+    }
+
+    private func read() async {
+        let graph = AppGraph.shared
+        defer { syncing = false }
+        do {
+            try await graph.recommender.syncNavidrome()
+            graph.recommender.refreshInBackground()
+        } catch {
+            graph.messages.error("Navidrome: \(describe(error))")
+        }
+    }
+
+    private func keepAdmin() {
+        let graph = AppGraph.shared
+        let name = adminName.trimmingCharacters(in: .whitespaces)
+        let secret = adminPassword
+        checkingAdmin = true
         Task { @MainActor in
-            defer { syncing = false }
+            defer { checkingAdmin = false }
             do {
-                try await graph.recommender.syncNavidrome()
-                graph.recommender.refreshInBackground()
+                if try await graph.navidrome.keepAdmin(graph.http, username: name, password: secret) {
+                    graph.messages.success("Rescans will sign in as \(name)")
+                    adminName = ""
+                    adminPassword = ""
+                } else {
+                    graph.messages.error("\(name) isn't an admin on this server.")
+                }
             } catch {
-                graph.messages.error("Navidrome: \(describe(error))")
+                graph.messages.error("Couldn't sign in as \(name): \(describe(error))")
             }
         }
     }

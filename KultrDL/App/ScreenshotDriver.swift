@@ -121,6 +121,24 @@ enum ScreenshotDriver {
         case "recommendations":
             actions.selectTab(.settings)
             graph.ui.setPath([.recommendations], for: .settings)
+        case "navidrome", "navidrome-listener":
+            // The throwaway Navidrome the probe started on the runner: signed in as its admin, the page
+            // suggests the account you listen with; switching to that keeps the admin for rescans.
+            let address = ProcessInfo.processInfo.environment["KULTRDL_NAVIDROME"] ?? "http://127.0.0.1:4533"
+            let store = graph.navidrome
+            func read() async -> String {
+                do { return try await graph.recommender.syncNavidrome() } catch { return "sync failed: \(describe(error))" }
+            }
+            await store.signIn(graph.http, url: address, username: "admin", password: "kultr-pass")
+            var note = await read()
+            if screen == "navidrome-listener" {
+                let kept = await store.signIn(graph.http, url: address, username: "listener", password: "listen-pass")
+                note += "; kept \(kept ?? "none"); " + (await read())
+            }
+            note += "; isAdmin \(store.config.isAdmin.map { "\($0)" } ?? "nil"), hasAdmin \(store.hasAdmin), rescans as \(store.scanClient(graph.http)?.server.username ?? "-")"
+            actions.selectTab(.settings)
+            graph.ui.setPath([.recommendations, .navidrome], for: .settings)
+            return note
         case "settings":
             actions.selectTab(.settings)
         case "servers":

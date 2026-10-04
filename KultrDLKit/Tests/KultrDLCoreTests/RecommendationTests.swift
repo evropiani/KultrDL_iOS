@@ -421,6 +421,27 @@ final class RecommendationSourceTests: XCTestCase {
         XCTAssertTrue(client.owns(stream))
         XCTAssertTrue(client.authenticate(stream).contains("&t="))
     }
+
+    func testSubsonicSaysWhetherTheAccountIsAnAdmin() async throws {
+        StubServer.answers = [
+            #"{"subsonic-response":{"status":"ok","user":{"username":"me","adminRole":false,"streamRole":true}}}"#,
+            #"{"subsonic-response":{"status":"ok","user":{"username":"admin","adminRole":true}}}"#,
+            #"{"subsonic-response":{"status":"ok","user":{"username":"x"}}}"#,
+        ]
+        StubServer.requests = []
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubServer.self]
+        let client = Subsonic(http: Http(session: URLSession(configuration: config)), server: .init(url: "http://stub.test:4533", username: "me", password: "pw"))
+        let first = try await client.isAdmin()
+        let second = try await client.isAdmin()
+        let third = try await client.isAdmin()
+        XCTAssertEqual(first, false)
+        XCTAssertEqual(second, true)
+        XCTAssertNil(third)
+        let asked = try XCTUnwrap(StubServer.requests.first.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) })
+        XCTAssertEqual(asked.path, "/rest/getUser.view")
+        XCTAssertEqual(asked.queryItems?.first { $0.name == "username" }?.value, "me")
+    }
 }
 
 /** Answers requests from a list, in order, and remembers what was asked. */
