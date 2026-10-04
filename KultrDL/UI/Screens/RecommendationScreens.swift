@@ -413,10 +413,17 @@ struct NavidromeScreen: View {
                 .disabled(!valid || testing)
                 Button("Save") { save() }
                     .disabled(!valid || !changed || syncing)
-            } footer: {
-                if config.configured, config.isAdmin == true, !graph.navidrome.hasAdmin {
-                    Text("\(config.username) is an admin account. If you listen with a different account (in Kultr or another app), sign in with that one above, so suggestions learn from your plays. KultrDL then keeps \(config.username) for rescans.")
-                        .foregroundStyle(theme.colors.accent)
+            }
+
+            if config.configured, config.isAdmin == true, !graph.navidrome.hasAdmin {
+                Section {
+                    Label {
+                        Text("\(config.username) is an admin account. If you listen with a different account (in Kultr or another app), sign in with that one above, so suggestions learn from your plays. KultrDL then keeps \(config.username) for rescans.")
+                            .font(.footnote)
+                    } icon: {
+                        Image(systemName: "person.crop.circle.badge.exclamationmark")
+                            .foregroundStyle(theme.colors.accent)
+                    }
                 }
             }
 
