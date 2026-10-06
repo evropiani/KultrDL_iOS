@@ -78,6 +78,9 @@ enum ScreenshotDriver {
             actions.openCollection(album)
             try? await Task.sleep(nanoseconds: 4_000_000_000)
         case "player", "mini":
+            // As people first see it (the Karousel screen leaves it on).
+            if graph.player.shuffleMode != .off { graph.player.cycleShuffle() }
+            if graph.player.shuffleMode != .off { graph.player.cycleShuffle() }
             let tracks = await seed(graph)
             guard !tracks.isEmpty else { return "nothing to play" }
             actions.selectTab(.home)
@@ -89,6 +92,21 @@ enum ScreenshotDriver {
             let state = graph.player.state
             if screen == "player" { actions.openPlayer() }
             return state.isPlaying ? "ok playing \(graph.player.positionMs()) ms" : "not playing (buffering \(state.buffering))"
+        case "karousel":
+            // A single song with Karousel on: it adds music like it, under its own heading in Up next.
+            let tracks = await seed(graph)
+            guard let first = tracks.first else { return "nothing to play" }
+            actions.selectTab(.home)
+            actions.play([first], 0)
+            for _ in 0..<3 where graph.player.shuffleMode != .karousel { graph.player.cycleShuffle() }
+            for _ in 0..<90 {
+                if !graph.player.state.karousel.isEmpty { break }
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+            actions.openPlayer()
+            let state = graph.player.state
+            let next = state.upNext.prefix(6).map { "\($0.track.artist) – \($0.track.title)\($0.karousel ? " [K]" : "")" }
+            return "mode \(graph.player.shuffleMode), \(state.karousel.count) added by Karousel; up next: \(next.joined(separator: ", "))"
         case "library":
             _ = await seed(graph)
             actions.selectTab(.library)

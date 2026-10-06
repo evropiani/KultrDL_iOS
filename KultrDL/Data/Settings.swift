@@ -90,6 +90,8 @@ struct Settings: Codable, Equatable {
     var wifiOnly = false
     var embedArtwork = true
     var streamQuality: StreamQuality = .high
+    /** Karousel: when the queue runs out, similar music keeps playing (the shuffle button's third state). */
+    var karousel = false
     /** The YouTube client tried first; empty picks automatically. */
     var youtubeClient = ""
     var autoUpdateEngine = true
@@ -116,7 +118,7 @@ struct Settings: Codable, Equatable {
     enum CodingKeys: String, CodingKey {
         case theme, accentFromArtwork, accent, reduceMotion, backdropArtwork, searchSource, country
         case spotifyClientId, spotifyClientSecret, download, askEachTime, destination, saveToMusic
-        case wifiOnly, embedArtwork, streamQuality, youtubeClient, autoUpdateEngine, lastEngineCheck
+        case wifiOnly, embedArtwork, streamQuality, karousel, youtubeClient, autoUpdateEngine, lastEngineCheck
         case suggestions, discoverLevel, excludedGenres, releaseAlerts, releaseWindowDays, usePhoneMusic, useDeezer
         case useYouTubeRadio, lastFmUser, lastFmApiKey, listenBrainzUser, suggestionsOnWifiOnly, suggestionsWhileCharging
     }
@@ -141,6 +143,7 @@ struct Settings: Codable, Equatable {
         wifiOnly = c.value(.wifiOnly, d.wifiOnly)
         embedArtwork = c.value(.embedArtwork, d.embedArtwork)
         streamQuality = c.value(.streamQuality, d.streamQuality)
+        karousel = c.value(.karousel, d.karousel)
         youtubeClient = c.value(.youtubeClient, d.youtubeClient)
         autoUpdateEngine = c.value(.autoUpdateEngine, d.autoUpdateEngine)
         lastEngineCheck = c.value(.lastEngineCheck, d.lastEngineCheck)

@@ -176,16 +176,7 @@ final class Recommender {
             }
             similar.append(NavidromeSimilar(client: client, ids: ids))
         }
-        var radio: (@Sendable (Track) async throws -> [Track])?
-        if s.useYouTubeRadio {
-            radio = { (track: Track) async throws -> [Track] in
-                let fromYouTube = track.source == .youtubeMusic || track.source == .youtube
-                let url: String? = fromYouTube ? track.streamUrl : matched[track.id]
-                guard let id = YouTubeMusic.videoId(url) else { return [] }
-                let songs = try await catalog.youTubeMusic.radio(id)
-                return Array(songs.prefix(25))
-            }
-        }
+        let radio = s.useYouTubeRadio ? Self.radio(catalog, matched: matched) : nil
         let artistCache = ArtistCache(cache.artists)
         let discovery = Discovery(
             directory: CatalogDirectory(deezer: catalog.deezer, apple: catalog.apple, useDeezer: { shared.value.useDeezer }),
@@ -316,6 +307,53 @@ final class Recommender {
             print("KultrDL: ListenBrainz playlists: \(describe(error))")
             return []
         }
+    }
+
+    /** YouTube Music's station from a song: its own video, or the recording it was matched to. */
+    private static func radio(_ catalog: Catalog, matched: [String: String]) -> @Sendable (Track) async throws -> [Track] {
+        { (track: Track) async throws -> [Track] in
+            let fromYouTube = track.source == .youtubeMusic || track.source == .youtube
+            let url: String? = fromYouTube ? track.streamUrl : matched[track.id]
+            guard let id = YouTubeMusic.videoId(url) else { return [] }
+            let songs = try await catalog.youTubeMusic.radio(id)
+            return Array(songs.prefix(25))
+        }
+    }
+
+    // ------------------------------------------------------------ Karousel --
+
+    /**
+     * Karousel's next songs: music like [seeds] (what has been playing, the song
+     * now playing first), leaving out [exclude] ([Keys.track] keys of the queue)
+     * and whatever played in the last few hours.
+     */
+    func karousel(seeds: [Track], exclude: Set<String>, count: Int = 10) async -> [Track] {
+        let s = graph.settings.settings
+        let since = nowMs() - 3 * Self.hour
+        let recent = await graph.listening.plays(since: since).map { Keys.track($0.artist, $0.title) }
+        let nav = graph.navidrome.config
+        let usePhone = s.usePhoneMusic && PhoneMusic.authorized
+        let songs = await graph.listening.allSongs().filter { $0.owner == .phone ? usePhone : nav.configured }
+        let known = graph.library.tracks.values.filter { $0.favorite || $0.saved || $0.localPath != nil || $0.playCount > 0 }
+        // The user's own music, most played first: Karousel's fallback, and what it mixes in.
+        var scored: [(Track, Int)] = songs.map { ($0.toTrack(), $0.playCount + ($0.starred ? 3 : 0)) }
+        scored += known.map { ($0.track, $0.playCount + ($0.favorite ? 3 : 0)) }
+        scored.sort { $0.1 > $1.1 }
+        var seen = Set<String>()
+        let mine = scored.map(\.0).filter { seen.insert(Keys.track($0.artist, $0.title)).inserted }
+        let matched = Dictionary(known.compactMap { t in t.matchedUrl.map { (t.id, $0) } }, uniquingKeysWith: { a, _ in a })
+        let shared = graph.settings.shared
+        let artistCache = ArtistCache(cache.artists)
+        let karousel = Karousel(
+            directory: CatalogDirectory(deezer: graph.catalog.deezer, apple: graph.catalog.apple, useDeezer: { shared.value.useDeezer }),
+            radio: s.useYouTubeRadio ? Self.radio(graph.catalog, matched: matched) : nil,
+            cache: artistCache,
+            log: { print("KultrDL: Karousel: \($0)") }
+        )
+        let next = await karousel.next(Karousel.Input(seeds: seeds, exclude: exclude.union(recent), rules: rules(s), owned: mine, count: count))
+        cache.artists = artistCache.snapshot()
+        saveCache()
+        return next
     }
 
     // ------------------------------------------------------------- sources --

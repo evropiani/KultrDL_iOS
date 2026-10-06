@@ -116,10 +116,13 @@ final class ChunkedStream: NSObject, AVAssetResourceLoaderDelegate, @unchecked S
 
     private func serve(_ loading: AVAssetResourceLoadingRequest) async {
         do {
-            if let wait = stream.availableAt?.timeIntervalSinceNow, wait > 0 {
+            // A song got ready ahead starts from the bytes already here.
+            let head = StreamHeads.shared.head(stream.url)
+            if head == nil, let wait = stream.availableAt?.timeIntervalSinceNow, wait > 0 {
                 try await Task.sleep(nanoseconds: UInt64(min(wait, 15) * 1_000_000_000))
             }
             if let info = loading.contentInformationRequest {
+                if currentLength() == nil, let total = head?.total { queue.sync { totalLength = total } }
                 if currentLength() == nil { _ = try await fetch(from: 0, to: 1) }
                 info.contentType = Self.typeIdentifier(stream.container)
                 info.contentLength = currentLength() ?? 0
@@ -131,6 +134,13 @@ final class ChunkedStream: NSObject, AVAssetResourceLoaderDelegate, @unchecked S
                 let end: Int64 = data.requestsAllDataToEndOfResource
                     ? total
                     : min(total, data.requestedOffset + Int64(data.requestedLength))
+                if let head, offset < Int64(head.data.count) {
+                    let upTo = min(end, Int64(head.data.count))
+                    if upTo > offset {
+                        data.respond(with: head.data.subdata(in: Int(offset)..<Int(upTo)))
+                        offset = upTo
+                    }
+                }
                 // The first piece small, so playback starts at once.
                 var size: Int64 = 256 * 1024
                 while offset < end {
@@ -150,5 +160,73 @@ final class ChunkedStream: NSObject, AVAssetResourceLoaderDelegate, @unchecked S
         } catch {
             if !loading.isCancelled && !loading.isFinished { loading.finishLoading(with: error) }
         }
+    }
+}
+
+/**
+ * The first bytes of streams that are coming up, fetched while the song
+ * before them plays (see StreamResolver.prefetch): a song then starts the
+ * moment it's due, and a stream that would be refused is known about early.
+ */
+final class StreamHeads: @unchecked Sendable {
+    static let shared = StreamHeads()
+
+    struct Head {
+        let data: Data
+        /** The whole file's length, when the site said. */
+        let total: Int64?
+    }
+
+    /** How much of each stream is fetched ahead. */
+    static let size = 256 * 1024
+    private static let kept = 4
+
+    private let lock = NSLock()
+    private var heads: [String: Head] = [:]
+    private var order: [String] = []
+    private let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.urlCache = nil
+        config.timeoutIntervalForRequest = 20
+        return URLSession(configuration: config)
+    }()
+
+    func head(_ url: String) -> Head? {
+        lock.lock()
+        defer { lock.unlock() }
+        return heads[url]
+    }
+
+    private func store(_ url: String, _ head: Head) {
+        lock.lock()
+        defer { lock.unlock() }
+        heads[url] = head
+        order.removeAll { $0 == url }
+        order.append(url)
+        while order.count > Self.kept { heads[order.removeFirst()] = nil }
+    }
+
+    /** Fetches the start of [stream] and keeps it; returns the site's HTTP status. */
+    func fetch(_ stream: MediaStream) async throws -> Int {
+        if head(stream.url) != nil { return 206 }
+        guard let url = URL(string: stream.url) else { throw URLError(.badURL) }
+        if let wait = stream.availableAt?.timeIntervalSinceNow, wait > 0 {
+            try await Task.sleep(nanoseconds: UInt64(min(wait, 15) * 1_000_000_000))
+        }
+        var request = URLRequest(url: url)
+        request.setValue(Http.browserUserAgent, forHTTPHeaderField: "User-Agent")
+        for (key, value) in stream.headers { request.setValue(value, forHTTPHeaderField: key) }
+        request.setValue("bytes=0-\(Self.size - 1)", forHTTPHeaderField: "Range")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+        guard (200..<300).contains(http.statusCode), !data.isEmpty else { return http.statusCode }
+        if let range = http.value(forHTTPHeaderField: "Content-Range"), let total = Int64(range.split(separator: "/").last ?? "") {
+            store(stream.url, Head(data: data, total: total))
+        } else if http.statusCode == 200 {
+            // No ranges on this server: the whole file came back.
+            store(stream.url, Head(data: data.prefix(Self.size), total: Int64(data.count)))
+        }
+        return http.statusCode
     }
 }

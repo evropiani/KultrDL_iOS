@@ -12,7 +12,14 @@ enum RepeatMode: String, Codable {
 struct QueueEntry: Identifiable, Equatable {
     let index: Int
     let track: Track
+    /** Added by Karousel, not by the user. */
+    var karousel = false
     var id: String { "\(index):\(track.id)" }
+}
+
+/** The shuffle button's states, in the order a tap moves through them. */
+enum ShuffleMode {
+    case off, shuffle, karousel
 }
 
 struct PlayerUiState: Equatable {
@@ -26,10 +33,12 @@ struct PlayerUiState: Equatable {
     var durationMs: Int64 = 0
     var shuffle = false
     var repeatMode: RepeatMode = .off
+    /** Ids of the songs Karousel added. */
+    var karousel: Set<String> = []
 
     var upNext: [QueueEntry] {
         guard index >= 0 else { return [] }
-        return queue.enumerated().dropFirst(index + 1).map { QueueEntry(index: $0.offset, track: $0.element) }
+        return queue.enumerated().dropFirst(index + 1).map { QueueEntry(index: $0.offset, track: $0.element, karousel: karousel.contains($0.element.id)) }
     }
 }
 
@@ -50,12 +59,16 @@ private struct SavedQueue: Codable {
     var positionMs: Int64
     var shuffle: Bool
     var repeatMode: RepeatMode
+    /** Ids of the songs Karousel added. */
+    var karousel: [String]?
 }
 
 /**
  * Playback: a queue of tracks played one after the other with AVPlayer,
  * each resolved when its turn comes (its downloaded file, or its stream),
  * with Control Center, the lock screen, AirPlay and headphone buttons.
+ * The next two songs are got ready while one plays, and with Karousel on,
+ * similar music is added as the queue runs out.
  */
 @MainActor
 @Observable
@@ -80,6 +93,9 @@ final class PlayerController {
     @ObservationIgnored private var artwork: MPMediaItemArtwork?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var listen: Listen?
+    @ObservationIgnored private var topping: Task<Void, Never>?
+    /** The song Karousel last found nothing for, so it doesn't ask again for the same one. */
+    @ObservationIgnored private var nothingFor: String?
 
     init(graph: AppGraph) {
         self.graph = graph
@@ -127,6 +143,8 @@ final class PlayerController {
             state.index = min(max(0, startIndex), tracks.count - 1)
         }
         state.shuffle = shuffle
+        state.karousel = []
+        nothingFor = nil
         state.current = state.queue[state.index]
         failuresInARow = 0
         load(autoplay: true)
@@ -152,7 +170,9 @@ final class PlayerController {
             return
         }
         graph.library.remember(tracks)
-        state.queue.append(contentsOf: tracks)
+        // Before what Karousel added: the user's own picks come first.
+        let firstKarousel = state.queue.indices.first { $0 > state.index && state.karousel.contains(state.queue[$0].id) }
+        state.queue.insert(contentsOf: tracks, at: firstKarousel ?? state.queue.count)
         original?.append(contentsOf: tracks)
         queueChanged()
     }
@@ -207,7 +227,11 @@ final class PlayerController {
             original = state.queue
             if state.index >= 0 {
                 let head = Array(state.queue.prefix(state.index + 1))
-                state.queue = head + state.queue.dropFirst(state.index + 1).shuffled()
+                let rest = state.queue.dropFirst(state.index + 1)
+                // Karousel's songs play after everything else.
+                let mine = rest.filter { !state.karousel.contains($0.id) }.shuffled()
+                let theirs = rest.filter { state.karousel.contains($0.id) }
+                state.queue = head + mine + theirs
             }
         } else if let original {
             let currentId = state.current?.id
@@ -228,8 +252,113 @@ final class PlayerController {
         queueChanged()
     }
 
+    // ----------------------------------------------------------- Karousel --
+
+    var shuffleMode: ShuffleMode {
+        if graph.settings.settings.karousel { return .karousel }
+        return state.shuffle ? .shuffle : .off
+    }
+
+    /**
+     * The shuffle button: off → shuffle → Karousel → off. Karousel keeps shuffle
+     * as it was and turns repeat off, since a repeating queue never runs out.
+     */
+    @discardableResult
+    func cycleShuffle() -> ShuffleMode {
+        switch shuffleMode {
+        case .off:
+            setShuffle(true)
+            return .shuffle
+        case .shuffle:
+            if state.repeatMode != .off { state.repeatMode = .off }
+            graph.settings.update { $0.karousel = true }
+            nothingFor = nil
+            queueChanged()
+            return .karousel
+        case .karousel:
+            graph.settings.update { $0.karousel = false }
+            dropKarousel()
+            setShuffle(false)
+            queueChanged()
+            return .off
+        }
+    }
+
+    /**
+     * With Karousel on, when the song playing is the last or next to last (or the
+     * queue has ended), adds music like what has been playing, and carries on
+     * playing if it had stopped. Repeat keeps the queue going by itself, so
+     * Karousel waits while it's on.
+     */
+    private func topUp() {
+        guard graph.settings.settings.karousel, state.repeatMode == .off, topping == nil,
+              state.index >= 0, state.index < state.queue.count, let current = state.current
+        else { return }
+        guard state.ended || state.queue.count - state.index - 1 <= 1, nothingFor != current.id else { return }
+        // The song playing and the ones before it, and a couple the user queued themselves, to stay close to where the music started.
+        let before: [Track] = Array(state.queue[max(0, state.index - 4)..<state.index].reversed())
+        let chosen: [Track] = Array(state.queue.filter { !state.karousel.contains($0.id) }.shuffled().prefix(2))
+        var seen = Set<String>()
+        let seeds: [Track] = ([current] + before + chosen).filter { seen.insert($0.id).inserted }
+        let queued = Set(state.queue.map { Keys.track($0.artist, $0.title) })
+        topping = Task { [weak self] in
+            guard let self else { return }
+            let more = await self.graph.recommender.karousel(seeds: seeds, exclude: queued)
+            guard !Task.isCancelled else { return }
+            self.topping = nil
+            guard self.graph.settings.settings.karousel, !self.state.queue.isEmpty else { return }
+            if more.isEmpty {
+                self.nothingFor = current.id
+                print("KultrDL: Karousel: found nothing to add")
+                return
+            }
+            self.nothingFor = nil
+            self.graph.library.remember(more)
+            let start = self.state.queue.count
+            let stopped = self.state.ended
+            self.state.queue.append(contentsOf: more)
+            self.original?.append(contentsOf: more)
+            self.state.karousel.formUnion(more.map(\.id))
+            print("KultrDL: Karousel: queued \(more.count) songs: \(more.prefix(3).map { "\($0.artist) – \($0.title)" }.joined(separator: ", "))…")
+            self.queueChanged()
+            if stopped { self.jumpTo(start) }
+        }
+    }
+
+    /** Karousel off: its songs that haven't played yet leave the queue. */
+    private func dropKarousel() {
+        topping?.cancel()
+        topping = nil
+        nothingFor = nil
+        guard state.index >= 0, !state.karousel.isEmpty else { return }
+        let dropped = state.karousel
+        let head = state.queue.prefix(state.index + 1)
+        state.queue = Array(head) + state.queue.dropFirst(state.index + 1).filter { !dropped.contains($0.id) }
+        original = original.map { list in list.filter { !dropped.contains($0.id) || head.contains($0) } }
+        state.karousel.formIntersection(head.map(\.id))
+    }
+
+    /** The next two songs, in the order they'll play, made ready to start at once (see StreamResolver.prefetch). */
+    private func readyAhead() {
+        guard loaded, player.currentItem?.status == .readyToPlay, state.repeatMode != .one, state.index >= 0 else { return }
+        var ahead: [Track] = []
+        var i = state.index
+        for _ in 0..<2 {
+            i += 1
+            if i >= state.queue.count {
+                guard state.repeatMode == .all else { break }
+                i = 0
+            }
+            if i == state.index { break }
+            ahead.append(state.queue[i])
+        }
+        for track in ahead where !graph.taste.blocks.blocks(track) { graph.resolver.prefetch(track) }
+    }
+
     func stop() {
         endListen(finished: false, skipped: false)
+        topping?.cancel()
+        topping = nil
         teardown()
         state = PlayerUiState()
         original = nil
@@ -362,6 +491,7 @@ final class PlayerController {
                 self.failed(track, error)
             }
         }
+        topUp()
     }
 
     private func attach(_ resolved: StreamResolver.Resolved, autoplay: Bool, at positionMs: Int64) {
@@ -422,7 +552,7 @@ final class PlayerController {
                 listen?.durationMs = state.durationMs
             }
             updateNowPlaying()
-            if state.index + 1 < state.queue.count { graph.resolver.prefetch(state.queue[state.index + 1]) }
+            readyAhead()
         case .failed:
             itemFailed(error)
         default:
@@ -497,6 +627,7 @@ final class PlayerController {
                 state.ended = true
                 state.playWhenReady = false
                 updateNowPlaying()
+                topUp()
             }
         }
     }
@@ -608,8 +739,12 @@ final class PlayerController {
     // --------------------------------------------------------- persistence --
 
     private func queueChanged() {
+        let ids = Set(state.queue.map(\.id))
+        if !state.karousel.isSubset(of: ids) { state.karousel.formIntersection(ids) }
         updateNowPlaying()
         scheduleSave()
+        readyAhead()
+        topUp()
     }
 
     private func scheduleSave() {
@@ -625,7 +760,8 @@ final class PlayerController {
         saveTask?.cancel()
         let saved = SavedQueue(
             queue: Array(state.queue.prefix(2000)), original: original.map { Array($0.prefix(2000)) },
-            index: state.index, positionMs: positionMs(), shuffle: state.shuffle, repeatMode: state.repeatMode
+            index: state.index, positionMs: positionMs(), shuffle: state.shuffle, repeatMode: state.repeatMode,
+            karousel: Array(state.karousel)
         )
         Storage.save(saved, "player.json")
     }
@@ -638,6 +774,7 @@ final class PlayerController {
         state.current = saved.queue[saved.index]
         state.shuffle = saved.shuffle
         state.repeatMode = saved.repeatMode
+        state.karousel = Set(saved.karousel ?? [])
         state.durationMs = state.current?.durationMs ?? 0
         original = saved.original
         pendingPositionMs = saved.positionMs

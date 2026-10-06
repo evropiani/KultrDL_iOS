@@ -138,7 +138,7 @@ jobs:
             xcrun simctl spawn "$UDID" log show --last 20m --style compact --predicate 'process == "KultrDL"' > "shots/${prefix}log.txt" 2>&1 || true
             xcrun simctl shutdown "$UDID" || true
           }
-          shoot 26 "" home search found album player mini library downloads settings servers foryou mix recommendations navidrome navidrome-listener
+          shoot 26 "" home search found album player mini library downloads settings servers foryou mix recommendations navidrome navidrome-listener karousel
           shoot 18 "ios18-" home found mini
           LOOK=light shoot 26 "light-" home found player
 

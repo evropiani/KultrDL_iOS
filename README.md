@@ -33,6 +33,12 @@ the same sources, formats and servers, and backups that move between the two.
 - **A player.** A queue you can reorder, shuffle and repeat, the lock screen,
   Control Center, AirPods and AirPlay; the full-screen player pulls down like
   a card, and the mini player rides on the tab bar.
+- **Karousel.** Tap shuffle twice: when the queue runs out, music like what
+  was playing keeps coming — a station started from the song playing, songs by
+  similar artists and the same ones, and your own music, which also keeps it
+  going offline. Its songs show under their own heading in Up next and leave
+  the queue when you turn it off. Blocked artists never come up. The next two
+  songs are got ready while one plays, so they follow without a pause.
 - **Your library on the phone:** favourites, saved tracks, your own playlists
   (or any album or playlist saved as one), downloads and listening history.
 - **Kultr's look.** Liquid glass on iOS 26 — the system tab bar with its lens,

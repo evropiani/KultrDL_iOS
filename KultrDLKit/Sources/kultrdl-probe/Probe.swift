@@ -259,6 +259,20 @@ struct Probe {
                 + feed.mixes.map { "\($0.title) (\($0.tracks.count))" }.joined(separator: ", ")
                 + "; albums " + feed.albums.prefix(3).map { "\($0.artist) – \($0.collection.title)" }.joined(separator: ", ")
         }
+        await check("Karousel after a song") {
+            guard let playing = try await catalog.youTubeMusic.searchSongs("Daft Punk One More Time").first else { throw KultrError("song not found") }
+            let karousel = Karousel(directory: CatalogDirectory(deezer: catalog.deezer, apple: catalog.apple), radio: { track in
+                guard let id = YouTubeMusic.videoId(track.streamUrl) else { return [] }
+                return try await catalog.youTubeMusic.radio(id)
+            }, log: { print("        \($0)") })
+            let start = Date()
+            let next = await karousel.next(Karousel.Input(seeds: [playing], exclude: [Keys.track(playing.artist, playing.title)]))
+            guard next.count >= 8 else { throw KultrError("\(next.count) songs") }
+            guard !next.contains(where: { Keys.track($0.artist, $0.title) == Keys.track(playing.artist, playing.title) }) else {
+                throw KultrError("picked the song playing again")
+            }
+            return String(format: "%.1fs: ", Date().timeIntervalSince(start)) + next.map { "\($0.artist) – \($0.title) [\($0.source.key)]" }.joined(separator: ", ")
+        }
     }
 
     // ---------------------------------------------------------- Navidrome --

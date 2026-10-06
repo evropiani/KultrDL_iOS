@@ -21,6 +21,8 @@ final class StreamResolver {
     private var cache: [String: MediaStream] = [:]
     private var refused: [String: Set<String>] = [:]
     private var inFlight: [String: Task<Resolved, Error>] = [:]
+    /** Songs being got ready ahead. */
+    private var preparing: Set<String> = []
 
     /** What AVPlayer plays from a file (not Ogg, Opus or WebM). */
     static let playable: Set<String> = ["mp3", "m4a", "aac", "flac", "wav", "aif", "aiff", "caf", "mp4", "alac"]
@@ -48,10 +50,43 @@ final class StreamResolver {
         return try await task.value
     }
 
-    /** Start resolving in the background, so the next track starts at once. */
+    /**
+     * Gets a song that's coming up ready in the background, so it starts the
+     * moment the one before it ends: its stream found and its first bytes
+     * fetched (see StreamHeads). A refusal is answered with another YouTube
+     * client now, not with a pause when the song is due.
+     */
     func prefetch(_ track: Track) {
-        guard local(track.id) == nil, track.source != .phone, track.source != .navidrome, cache[track.id] == nil, inFlight[track.id] == nil else { return }
-        Task { _ = try? await resolve(track) }
+        guard local(track.id) == nil, track.source != .phone, track.source != .navidrome, !preparing.contains(track.id) else { return }
+        if let hit = cache[track.id], hit.expiresAt > Date().addingTimeInterval(90), hit.kind == .hls || StreamHeads.shared.head(hit.url) != nil {
+            return
+        }
+        preparing.insert(track.id)
+        Task {
+            defer { preparing.remove(track.id) }
+            do {
+                let how = try await ready(track)
+                print("KultrDL: Ready ahead: \(track.artist) – \(track.title) (\(how))")
+            } catch {
+                print("KultrDL: Couldn't get \(track.artist) – \(track.title) ready ahead: \(describe(error))")
+            }
+        }
+    }
+
+    /** Resolves [track] and fetches the start of its stream; says how it will play. */
+    private func ready(_ track: Track) async throws -> String {
+        for _ in 0...graph.engine.config.clients.count {
+            guard case .remote(let stream) = try await resolve(track) else { return "plays from here" }
+            if stream.kind == .hls { return "stream found" }
+            let code = try await StreamHeads.shared.fetch(stream)
+            if (200..<300).contains(code) { return "stream checked" }
+            if [401, 403, 410].contains(code), refuse(track.id) {
+                print("KultrDL: YouTube refused the stream of \(track.title) ahead of time; trying another client")
+                continue
+            }
+            throw KultrError("its stream answered HTTP \(code)")
+        }
+        throw KultrError("YouTube refused every client")
     }
 
     func invalidate(_ trackId: String) {
