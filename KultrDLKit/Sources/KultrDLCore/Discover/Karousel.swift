@@ -148,7 +148,32 @@ public struct Karousel: Sendable {
         let counts = sources.map { s in picked.filter { s.contains($0) }.count }
         let own = picked.count - counts.reduce(0, +)
         log("\(picked.count) songs like \(artists.joined(separator: ", ")): \(counts[0]) from the station, \(counts[1]) by similar artists, \(counts[2]) by the same artists, \(own) of the user's own")
-        return Discovery.spread(picked)
+        return Self.spread(picked)
+    }
+
+    /**
+     * The same order, moved only so one artist never plays twice in a row
+     * where any order avoids it: an artist with more than half of what is
+     * left goes next, else the first song by someone else.
+     */
+    static func spread(_ tracks: [Track]) -> [Track] {
+        var left = tracks
+        var out: [Track] = []
+        out.reserveCapacity(tracks.count)
+        var last: String?
+        func artist(_ t: Track) -> String { Credits.key(Keys.primary(t.artist)) }
+        while !left.isEmpty {
+            var counts: [String: Int] = [:]
+            for t in left { counts[artist(t), default: 0] += 1 }
+            let crowded = counts.first { $0.key != last && $0.value * 2 > left.count }?.key
+            let i = crowded.flatMap { c in left.firstIndex { artist($0) == c } }
+                ?? left.firstIndex { artist($0) != last }
+                ?? 0
+            let next = left.remove(at: i)
+            out.append(next)
+            last = artist(next)
+        }
+        return out
     }
 
     // ------------------------------------------------------------ sources --

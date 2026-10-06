@@ -81,6 +81,17 @@ final class KarouselTests: XCTestCase {
         XCTAssertFalse(zip(next, next.dropFirst()).contains { $0.artist == $1.artist })
     }
 
+    func testSpreadKeepsAnArtistFromPlayingTwiceInARow() {
+        // The first song by someone else each time would leave the two by C together at the end.
+        let order = ["A", "B", "A", "B", "C", "C"].enumerated().map { song($1, "Song \($0)") }
+        let spread = Karousel.spread(order)
+        XCTAssertEqual(Set(spread), Set(order))
+        XCTAssertFalse(zip(spread, spread.dropFirst()).contains { $0.artist == $1.artist }, spread.map(\.artist).joined())
+        // Already apart: left as it is.
+        let apart = ["A", "B", "A", "C"].enumerated().map { song($1, "Song \($0)") }
+        XCTAssertEqual(Karousel.spread(apart), apart)
+    }
+
     func testWithNoConnectionItCarriesOnWithTheUsersOwnMusic() async {
         let mine = [
             song("Daft Punk", "Aerodynamic", .navidrome),
