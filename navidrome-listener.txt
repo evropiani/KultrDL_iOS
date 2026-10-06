@@ -1,0 +1,1 @@
+5 songs (0 played by admin) from Navidrome 0.64.2 (10114574); kept admin; 5 songs (3 played by listener) from Navidrome 0.64.2 (10114574); isAdmin false, hasAdmin true, rescans as admin, keychain ok
